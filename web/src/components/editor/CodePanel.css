@@ -1,0 +1,234 @@
+/* Code Panel Styles */
+
+.code-panel {
+  border-top: 1px solid var(--border);
+  background-color: var(--card-bg);
+  flex-shrink: 0;
+  height: 40px;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+.code-panel.expanded {
+  height: 280px;
+}
+
+.code-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 40px;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.15s ease;
+}
+
+.code-panel.expanded .code-panel-header {
+  border-bottom-color: var(--border);
+  cursor: default;
+}
+
+.code-panel-header:hover {
+  background-color: var(--bg);
+}
+
+.code-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.expand-icon {
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.code-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* View Mode Tabs */
+.view-mode-tabs {
+  display: flex;
+  background-color: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  margin-right: 8px;
+}
+
+.mode-tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.mode-tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.mode-tab.active {
+  background-color: var(--card-bg);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mode-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Action Buttons */
+.code-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--card-bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.code-action-btn:hover {
+  background-color: var(--bg);
+  border-color: var(--text-secondary);
+}
+
+.code-action-btn.active {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.code-action-btn.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.code-action-btn.btn-primary:hover {
+  background-color: var(--primary-dark, #4338ca);
+  border-color: var(--primary-dark, #4338ca);
+}
+
+.code-panel-content {
+  height: calc(100% - 40px);
+  overflow: auto;
+}
+
+.code-preview {
+  margin: 0;
+  padding: 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--bg);
+  white-space: pre;
+  overflow: auto;
+}
+
+.code-preview code {
+  font-family: inherit;
+}
+
+.code-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Code Edit Container */
+.code-edit-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.code-edit-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+}
+
+.code-edit-textarea:focus {
+  background-color: #fafafa;
+}
+
+.code-edit-textarea.has-error {
+  background-color: rgba(220, 38, 38, 0.05);
+}
+
+.code-error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: rgba(220, 38, 38, 0.1);
+  color: var(--danger, #dc2626);
+  font-size: 12px;
+  border-top: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.code-error-message svg {
+  flex-shrink: 0;
+}
+
+/* Scrollbar styling */
+.code-panel-content::-webkit-scrollbar,
+.code-edit-textarea::-webkit-scrollbar,
+.code-preview::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.code-panel-content::-webkit-scrollbar-track,
+.code-edit-textarea::-webkit-scrollbar-track,
+.code-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-panel-content::-webkit-scrollbar-thumb,
+.code-edit-textarea::-webkit-scrollbar-thumb,
+.code-preview::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 4px;
+}
+
+.code-panel-content::-webkit-scrollbar-thumb:hover,
+.code-edit-textarea::-webkit-scrollbar-thumb:hover,
+.code-preview::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}

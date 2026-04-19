@@ -1,0 +1,389 @@
+/* Property Panel Styles */
+
+.property-panel {
+  width: 280px;
+  border-left: 1px solid var(--border);
+  background-color: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.property-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.property-panel-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.node-type-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.node-type-badge.element {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.node-type-badge.text {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.property-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* No Selection State */
+.no-selection,
+.multi-selection-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-selection svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-selection p,
+.multi-selection-info p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.no-selection .hint,
+.multi-selection-info .hint {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* Property Section */
+.property-section {
+  margin-bottom: 8px;
+  background-color: var(--bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.property-section:last-child {
+  margin-bottom: 0;
+}
+
+.property-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.property-section.collapsible h4 {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.property-section.collapsible h4:hover {
+  background-color: var(--border);
+}
+
+.property-section.collapsible .expand-icon {
+  transition: transform 0.2s ease;
+  opacity: 0.6;
+}
+
+.property-section.collapsible .expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.section-content {
+  padding: 12px;
+}
+
+/* Property Field */
+.property-field {
+  margin-bottom: 12px;
+}
+
+.property-field:last-child {
+  margin-bottom: 0;
+}
+
+.property-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.property-field input,
+.property-field select,
+.property-field textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--card-bg);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.property-field input:focus,
+.property-field select:focus,
+.property-field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.property-field select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='%236b7280'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+/* Number Input */
+.number-input-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.number-input-wrapper input {
+  flex: 1;
+  padding-right: 24px;
+}
+
+.number-input-wrapper .input-suffix {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* Color Input */
+.color-input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.color-input-wrapper input[type="color"] {
+  width: 36px;
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.color-input-wrapper input[type="text"] {
+  flex: 1;
+}
+
+/* Property Row Grid */
+.property-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Directional Input */
+.directional-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.directional-inputs .dir-input {
+  padding: 6px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.directional-inputs .dir-input.top {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 50%;
+}
+
+.directional-inputs .dir-input.left {
+  justify-self: end;
+}
+
+.directional-inputs .dir-input.right {
+  justify-self: start;
+}
+
+.directional-inputs .dir-input.bottom {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 50%;
+}
+
+.unified-input {
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Button Group */
+.button-group {
+  display: flex;
+  gap: 2px;
+  background-color: var(--border);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.button-group button {
+  flex: 1;
+  padding: 6px;
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-group button:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: var(--text);
+}
+
+.button-group button.active {
+  background-color: var(--card-bg);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Readonly Field */
+.readonly-field .copyable-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.readonly-field .copyable-value:hover {
+  background-color: var(--bg);
+}
+
+.readonly-field .copyable-value code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.readonly-field .copyable-value svg {
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.readonly-field .copyable-value:hover svg {
+  opacity: 1;
+}
+
+/* Text Content Textarea */
+.text-content-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--card-bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.text-content-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+/* Scrollbar styling */
+.property-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.property-panel-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.property-panel-content::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+.property-panel-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+/* AI Edit Button */
+.ai-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: var(--primary-light, #EEF2FF);
+  color: var(--primary, #4F46E5);
+  border: 1px solid var(--primary, #4F46E5);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-edit-btn:hover {
+  background: var(--primary, #4F46E5);
+  color: white;
+}

@@ -1,0 +1,304 @@
+/* Canvas Styles */
+
+.canvas-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background-color: #e5e5e5;
+  background-image: 
+    linear-gradient(45deg, #d4d4d4 25%, transparent 25%),
+    linear-gradient(-45deg, #d4d4d4 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d4d4d4 75%),
+    linear-gradient(-45deg, transparent 75%, #d4d4d4 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  cursor: default;
+}
+
+.canvas-container.panning {
+  cursor: grabbing;
+}
+
+.canvas-container.marquee-mode {
+  cursor: crosshair;
+}
+
+.canvas-container.dragging {
+  cursor: move;
+}
+
+.canvas-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas-placeholder {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.canvas-placeholder p {
+  margin: 8px 0;
+}
+
+.canvas-placeholder .hint {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.canvas-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.canvas-screenshot {
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Capture Content Layer - renders actual captureTree content */
+.capture-content-layer {
+  pointer-events: none;
+  user-select: none;
+}
+
+.capture-content-layer * {
+  pointer-events: none;
+  user-select: none;
+}
+
+.node-overlays-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.node-overlay {
+  pointer-events: auto;
+  cursor: pointer;
+  background-color: transparent;
+  transition: background-color 0.1s ease;
+}
+
+.node-overlay:hover,
+.node-overlay.hovered {
+  background-color: rgba(79, 70, 229, 0.08);
+  outline: 1px solid rgba(79, 70, 229, 0.3);
+}
+
+.node-overlay.selected {
+  background-color: rgba(79, 70, 229, 0.12);
+}
+
+.node-overlay.text-node {
+  cursor: text;
+}
+
+/* Selection Overlay - must be above node overlays */
+.selection-overlay {
+  pointer-events: auto;
+  border: 2px solid var(--primary);
+  background-color: rgba(79, 70, 229, 0.05);
+  z-index: 200;
+  cursor: move;
+}
+
+.selection-label {
+  position: absolute;
+  top: -24px;
+  left: -2px;
+  background-color: var(--primary);
+  color: white;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border: 1px solid var(--primary);
+  border-radius: 1px;
+}
+
+.resize-handle.nw {
+  top: -5px;
+  left: -5px;
+  cursor: nw-resize;
+}
+
+.resize-handle.ne {
+  top: -5px;
+  right: -5px;
+  cursor: ne-resize;
+}
+
+.resize-handle.sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: sw-resize;
+}
+
+.resize-handle.se {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+/* Hover Overlay */
+.hover-overlay {
+  pointer-events: none;
+  border: 1px solid rgba(79, 70, 229, 0.5);
+  background-color: rgba(79, 70, 229, 0.04);
+  z-index: 50;
+}
+
+/* Marquee Selection */
+.marquee-selection {
+  pointer-events: none;
+  border: 1px dashed var(--primary);
+  background-color: rgba(79, 70, 229, 0.08);
+  z-index: 300;
+}
+
+/* Zoom Indicator */
+.zoom-indicator {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Context Menu */
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.context-menu {
+  position: fixed;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 4px 0;
+  min-width: 160px;
+  z-index: 1001;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.context-menu-item:hover {
+  background-color: var(--bg);
+}
+
+.context-menu-item.danger {
+  color: var(--danger, #dc2626);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+.context-menu-item.ai-item {
+  color: var(--primary);
+}
+
+.context-menu-item.ai-item:hover {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+.context-menu-item.ai-free {
+  font-weight: 600;
+}
+
+.context-menu-item svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 4px 0;
+}
+
+/* Inline Edit */
+.inline-edit-overlay {
+  z-index: 300;
+}
+
+.inline-edit-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background-color: white;
+  color: var(--text);
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  resize: none;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Dragging State */
+.canvas-container.dragging .selection-overlay {
+  opacity: 0.8;
+}
+
+/* Reference Lines (optional, for alignment) */
+.reference-line {
+  position: absolute;
+  background-color: var(--primary);
+  pointer-events: none;
+  z-index: 150;
+}
+
+.reference-line.horizontal {
+  height: 1px;
+  left: 0;
+  right: 0;
+}
+
+.reference-line.vertical {
+  width: 1px;
+  top: 0;
+  bottom: 0;
+}

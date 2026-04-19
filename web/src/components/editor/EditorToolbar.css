@@ -1,0 +1,134 @@
+/* Editor Toolbar Styles */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--border);
+  margin: 0 4px;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background-color: var(--bg);
+  border-color: var(--border);
+}
+
+.toolbar-btn:active:not(:disabled) {
+  background-color: var(--border);
+}
+
+.toolbar-btn.active {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn.btn-icon {
+  padding: 6px;
+}
+
+.toolbar-btn.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.toolbar-btn.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.toolbar-btn.figma-btn {
+  background: linear-gradient(135deg, #a259ff 0%, #f24e1e 50%, #ff7262 100%);
+  border-color: transparent;
+  color: white;
+}
+
+.toolbar-btn.figma-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Save Status */
+.save-status-group {
+  margin-left: auto;
+}
+
+.toolbar-btn.save-btn {
+  border-color: var(--border);
+}
+
+.toolbar-btn.save-btn.saved {
+  color: #10b981;
+  border-color: #10b981;
+}
+
+.toolbar-btn.save-btn.unsaved {
+  color: #f59e0b;
+  border-color: #f59e0b;
+  animation: pulse 2s infinite;
+}
+
+.toolbar-btn.save-btn.saving {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
