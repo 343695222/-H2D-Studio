@@ -108,4 +108,46 @@ router.get('/sessions', async (req, res) => {
   }
 });
 
+// POST /api/agent/sessions/:id/rollback — 回退到指定阶段
+router.post('/sessions/:id/rollback', async (req, res) => {
+  try {
+    const { targetStage } = req.body;
+    if (!targetStage) {
+      res.status(400).json({ success: false, error: 'targetStage is required' });
+      return;
+    }
+    const service = await getAgentService();
+    const result = await service.rollbackStage(req.params.id, targetStage);
+    res.json({ success: true, data: { response: result.response, stage: result.stage } });
+  } catch (error: any) {
+    console.error('Error rolling back stage:', error);
+    const msg = error.message || 'Failed to rollback stage';
+    const status = msg.includes('not found') ? 404
+      : msg.includes('Invalid target stage') || msg.includes('Cannot rollback') ? 400
+      : 500;
+    res.status(status).json({ success: false, error: msg });
+  }
+});
+
+// POST /api/agent/sessions/:id/update-prd — 局部更新 PRD
+router.post('/sessions/:id/update-prd', async (req, res) => {
+  try {
+    const { section, modification } = req.body;
+    if (!section || !modification) {
+      res.status(400).json({ success: false, error: 'section and modification are required' });
+      return;
+    }
+    const service = await getAgentService();
+    const result = await service.updatePRDSection(req.params.id, section, modification);
+    res.json({ success: true, data: { response: result.response, prd: result.prd } });
+  } catch (error: any) {
+    console.error('Error updating PRD section:', error);
+    const msg = error.message || 'Failed to update PRD section';
+    const status = msg.includes('not found') ? 404
+      : msg.includes('No PRD document found') ? 400
+      : 500;
+    res.status(status).json({ success: false, error: msg });
+  }
+});
+
 export default router;

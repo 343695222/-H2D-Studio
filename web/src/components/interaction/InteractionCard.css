@@ -1,0 +1,309 @@
+/* ========== Interaction Card Styles ========== */
+
+.interaction-card {
+  border-radius: 12px;
+  padding: 16px;
+  margin: 8px 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.interaction-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== Step Indicator ========== */
+
+.interaction-step-indicator {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.interaction-step-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  background: #d9d9d9;
+  border-radius: 1px;
+}
+
+/* ========== Question ========== */
+
+.interaction-question {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* ========== Text Card ========== */
+
+.interaction-text {
+  background: #f6f8fa;
+  border-color: #e1e4e8;
+}
+
+.interaction-text-content {
+  font-size: 14px;
+  color: #4a4a4a;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ========== Options ========== */
+
+.interaction-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.interaction-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid #e8e8e8;
+  border-radius: 10px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+  position: relative;
+}
+
+.interaction-option:hover:not(:disabled) {
+  border-color: #4a90d9;
+  background: #f0f7ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(74, 144, 217, 0.15);
+}
+
+.interaction-option.selected {
+  border-color: #4a90d9;
+  background: #e8f2ff;
+  box-shadow: 0 0 0 1px #4a90d9;
+}
+
+.interaction-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.option-icon {
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+}
+
+.option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.option-label {
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 2px;
+}
+
+.option-description {
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.4;
+}
+
+.option-check {
+  color: #4a90d9;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ========== Multi-choice Confirm Button ========== */
+
+.interaction-confirm-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.interaction-confirm-btn:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.interaction-confirm-btn:disabled {
+  background: #b0c4de;
+  cursor: not-allowed;
+}
+
+/* ========== Diffs ========== */
+
+.interaction-diffs {
+  margin: 12px 0;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.diffs-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.diff-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: #595959;
+}
+
+.diff-action {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.diff-description {
+  line-height: 1.4;
+}
+
+.diff-modify .diff-description { color: #d48806; }
+.diff-add .diff-description { color: #389e0d; }
+.diff-delete .diff-description { color: #cf1322; }
+
+/* ========== Actions ========== */
+
+.interaction-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-cancel {
+  background: #fff;
+  border-color: #d9d9d9;
+  color: #595959;
+}
+
+.action-cancel:hover:not(:disabled) {
+  border-color: #bfbfbf;
+  color: #262626;
+}
+
+.action-adjust {
+  background: #fff;
+  border-color: #4a90d9;
+  color: #4a90d9;
+}
+
+.action-adjust:hover:not(:disabled) {
+  background: #f0f7ff;
+}
+
+.action-confirm,
+.action-apply {
+  background: #4a90d9;
+  color: #fff;
+  border-color: #4a90d9;
+}
+
+.action-confirm:hover:not(:disabled),
+.action-apply:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+/* ========== Summary Card ========== */
+
+.interaction-summary {
+  border-color: #b7eb8f;
+  background: #f6ffed;
+}
+
+.summary-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: #389e0d;
+  margin-bottom: 8px;
+}
+
+.summary-content {
+  font-size: 14px;
+  color: #4a4a4a;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ========== Preview Card ========== */
+
+.interaction-preview {
+  border-color: #91d5ff;
+  background: #e6f7ff;
+}
+
+.preview-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #096dd9;
+  margin-bottom: 6px;
+}
+
+.preview-content {
+  font-size: 13px;
+  color: #595959;
+  line-height: 1.5;
+}
+
+/* ========== Confirm Card ========== */
+
+.interaction-confirm {
+  border-color: #ffd591;
+  background: #fff7e6;
+}

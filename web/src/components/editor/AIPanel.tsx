@@ -3,6 +3,8 @@ import { useEditorStore } from '../../stores/editorStore.ts';
 import type { SnapshotNode } from '../../stores/editorStore.ts';
 import { apiPost } from '../../api/client.ts';
 import type { CaptureTree } from '../../types/capture.ts';
+import { InteractionCard } from '../interaction/InteractionCard.tsx';
+import type { InteractionMessage, InteractionResponse } from '../../types/interaction.ts';
 import './AIPanel.css';
 
 // 设计工作流 API
@@ -74,7 +76,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // 工作流模式状态
-  const [mode, setMode] = useState<'quick' | 'workflow'>('quick');
+  const [mode, setMode] = useState<'quick' | 'workflow' | 'cards'>('quick');
   const [workflowMessages, setWorkflowMessages] = useState<Array<{
     id: string;
     role: 'user' | 'assistant';
@@ -82,6 +84,10 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     timestamp: string;
   }>>([]);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+
+  // 卡片交互模式状态
+  const [cardsMessages, setCardsMessages] = useState<InteractionMessage[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(false);
 
   const {
     projectId,
@@ -91,6 +97,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     pendingModifiedTree,
     setAIMessages,
     setPendingModifiedTree,
+    setPreviewTree,
     pushHistory,
     setCaptureTree,
     selectedNodeIds,
@@ -117,7 +124,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiMessages, isLoading, workflowMessages, workflowLoading]);
+  }, [aiMessages, isLoading, workflowMessages, workflowLoading, cardsMessages, cardsLoading]);
 
   // 面板关闭时退出预览模式
   useEffect(() => {
@@ -144,11 +151,8 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     // 构建完整消息（对用户透明地附带选中节点上下文）
     let fullMessage = requirement;
     if (selectedNode) {
-      const el = selectedNode as any;
-      const w = Math.round(el.rect?.width || el.rect?.cssWidth || 0);
-      const h = Math.round(el.rect?.height || el.rect?.cssHeight || 0);
-      const contextInfo = `[用户选中了以下区域进行修改]\n节点: ${el.tag || '文本'} (${el.id})\n尺寸: ${w}×${h}\n位置: (${Math.round(el.rect?.x || 0)}, ${Math.round(el.rect?.y || 0)})\n子元素数: ${el.childNodes?.length || 0}\n\n用户需求: `;
-      fullMessage = contextInfo + requirement;
+      const nodeContext = buildSelectedNodeContext(selectedNode);
+      fullMessage = `${nodeContext}\n\n用户需求: ${requirement}`;
     }
 
     // 添加用户消息（显示原始输入，不显示上下文前缀）
@@ -187,6 +191,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
 
       setAIMessages([...newMessages, assistantMessage]);
       setPendingModifiedTree(response.modifiedTree);
+      setPreviewTree(response.modifiedTree);  // 立即在 Canvas 中预览修改
     } catch (err) {
       // 添加错误消息
       const errorMessage: ChatMessage = {
@@ -201,11 +206,175 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     }
   };
 
+  // 构建选中节点的详细上下文信息（供 AI 保持原样式使用）
+  const buildSelectedNodeContext = (node: SnapshotNode | null): string => {
+    if (!node) return '';
+    const el = node as any;
+    const w = Math.round(el.rect?.width || el.rect?.cssWidth || 0);
+    const h = Math.round(el.rect?.height || el.rect?.cssHeight || 0);
+    const x = Math.round(el.rect?.x || 0);
+    const y = Math.round(el.rect?.y || 0);
+    const styles = el.styles || {};
+    const childCount = el.childNodes?.length || 0;
+
+    const parts = [
+      `[用户选中了以下区域进行修改，请严格保持该区域的原始视觉风格]`,
+      `选中节点: ${el.tag || '文本'} (${el.id})`,
+      `尺寸: ${w}×${h}`,
+      `位置: (${x}, ${y})`,
+      `子元素数: ${childCount}`,
+    ];
+
+    if (Object.keys(styles).length > 0) {
+      parts.push(`原始样式: ${JSON.stringify(styles)}`);
+    }
+
+    // 提取选中节点的子树结构（控制大小避免 token 过多）
+    const subtree = JSON.stringify(el, (key, val) => {
+      if (key === 'parentElement') return undefined;
+      return val;
+    }, 2);
+    if (subtree.length < 8000) {
+      parts.push(`选中节点完整结构:\n${subtree}`);
+    }
+
+    parts.push(`\n重要要求: 请仅修改选中节点(${el.id})及其子节点，不要改变页面其他部分。必须严格保持选中节点的原始样式风格（颜色、字体、圆角、间距、布局等），在原有样式基础上进行修改。`);
+
+    return parts.join('\n');
+  };
+
+  // 卡片交互模式发送处理
+  const handleCardsSend = async () => {
+    if (!inputValue.trim() || cardsLoading || !projectId || !pageId) return;
+    const requirement = inputValue.trim();
+    setInputValue('');
+
+    // 添加用户消息
+    const userMsg: InteractionMessage = {
+      id: `msg-${Date.now()}`,
+      type: 'text',
+      content: requirement,
+    };
+    setCardsMessages(prev => [...prev, userMsg]);
+    setCardsLoading(true);
+
+    try {
+      // 构建带选中节点详细上下文的消息
+      let fullMessage = requirement;
+      if (selectedNode) {
+        const nodeContext = buildSelectedNodeContext(selectedNode);
+        fullMessage = `${nodeContext}\n\n用户需求: ${requirement}`;
+      }
+
+      const response = await apiPost<{
+        modifiedTree: CaptureTree;
+        explanation: string;
+      }>('/ai/generate-modified', {
+        projectId,
+        pageId,
+        requirement: fullMessage,
+        captureTree,
+      });
+
+      // 将 AI 回复包装为 summary 类型的交互消息
+      const aiMsg: InteractionMessage = {
+        id: `msg-${Date.now()}-ai`,
+        type: 'summary',
+        content: response.explanation || '已为您生成修改方案',
+        preview: {
+          type: 'diff',
+          diff: [{
+            nodeId: selectedNode?.id || 'unknown',
+            action: 'modify' as const,
+            description: response.explanation || 'AI 修改',
+          }],
+        },
+      };
+      setCardsMessages(prev => [...prev, aiMsg]);
+      setPendingModifiedTree(response.modifiedTree);
+      setPreviewTree(response.modifiedTree);  // 卡片模式也启用预览
+    } catch (err) {
+      const errorMsg: InteractionMessage = {
+        id: `msg-${Date.now()}-err`,
+        type: 'text',
+        content: `❌ 出错: ${err instanceof Error ? err.message : '未知错误'}`,
+      };
+      setCardsMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setCardsLoading(false);
+    }
+  };
+
+  // 卡片交互响应处理（独立于快速编辑模式的消息状态）
+  const handleCardsRespond = async (response: InteractionResponse) => {
+    if (response.selectedOptions.includes('apply') || response.selectedOptions.includes('confirm')) {
+      if (!pendingModifiedTree) return;
+
+      const validation = validateCaptureTreeFormat(pendingModifiedTree);
+      if (!validation.valid) {
+        const errorMsg: InteractionMessage = {
+          id: `msg-${Date.now()}-val`,
+          type: 'text',
+          content: `结构格式不兼容(${validation.reason})，无法应用。`,
+        };
+        setCardsMessages(prev => [...prev, errorMsg]);
+        setPendingModifiedTree(null);
+        setPreviewTree(null);
+        return;
+      }
+
+      // 保存当前状态到历史（用于撤销）
+      pushHistory();
+      // 应用修改
+      setCaptureTree(pendingModifiedTree);
+      setPendingModifiedTree(null);
+      setPreviewTree(null);
+
+      // 在卡片消息中显示已应用状态
+      const appliedMsg: InteractionMessage = {
+        id: `msg-${Date.now()}-applied`,
+        type: 'text',
+        content: '✅ 修改已应用，可通过工具栏「撤销」按钮或 Ctrl+Z 回退。',
+      };
+      setCardsMessages(prev => [...prev, appliedMsg]);
+    } else if (response.selectedOptions.includes('cancel')) {
+      // 取消：清除预览和待应用状态，Canvas 自动恢复显示 captureTree
+      setPendingModifiedTree(null);
+      setPreviewTree(null);
+
+      const cancelMsg: InteractionMessage = {
+        id: `msg-${Date.now()}-cancel`,
+        type: 'text',
+        content: '已取消应用修改，画布已恢复原状。',
+      };
+      setCardsMessages(prev => [...prev, cancelMsg]);
+    } else if (response.selectedOptions.includes('adjust')) {
+      // 再调整：清除当前预览，重新发送
+      setPendingModifiedTree(null);
+      setPreviewTree(null);
+
+      // 找最后一条用户文本消息
+      const lastUserMsg = [...cardsMessages].reverse().find(m => m.type === 'text');
+      if (lastUserMsg) {
+        setInputValue(lastUserMsg.content);
+        const adjustMsg: InteractionMessage = {
+          id: `msg-${Date.now()}-adjust`,
+          type: 'text',
+          content: '正在重新生成...',
+        };
+        setCardsMessages(prev => [...prev, adjustMsg]);
+        setTimeout(() => handleCardsSend(), 0);
+      }
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (mode === 'quick') {
         handleSend();
+      } else if (mode === 'cards') {
+        handleCardsSend();
       } else {
         handleWorkflowSend();
       }
@@ -226,13 +395,14 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
       };
       setAIMessages([...aiMessages, errorMsg]);
       setPendingModifiedTree(null);
+      setPreviewTree(null);
       return;
     }
 
-    // 保存当前状态到历史
+    // 保存当前状态到历史（用于撤销）
     pushHistory();
 
-    // 应用修改
+    // 应用修改 — 将预览树设为正式的 captureTree
     setCaptureTree(pendingModifiedTree);
 
     // 标记消息为已应用
@@ -241,10 +411,12 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     );
     setAIMessages(updatedMessages);
     setPendingModifiedTree(null);
+    setPreviewTree(null);  // 清除预览（已应用到 captureTree）
   };
 
   const handleDiscard = () => {
     setPendingModifiedTree(null);
+    setPreviewTree(null);  // 清除预览，Canvas 恢复显示原始 captureTree
     // 标记最后一条AI消息为已取消（通过添加系统消息）
     const systemMessage: ChatMessage = {
       id: generateId(),
@@ -266,6 +438,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
     );
     setAIMessages(filteredMessages);
     setPendingModifiedTree(null);
+    setPreviewTree(null);
 
     // 重新发送
     setInputValue(lastUserMessage.content);
@@ -390,6 +563,12 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
           快速编辑
         </button>
         <button
+          className={`ai-mode-btn ${mode === 'cards' ? 'active' : ''}`}
+          onClick={() => setMode('cards')}
+        >
+          🃏 卡片交互
+        </button>
+        <button
           className={`ai-mode-btn ${mode === 'workflow' ? 'active' : ''}`}
           onClick={() => setMode('workflow')}
         >
@@ -501,6 +680,31 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
           </div>
         )}
 
+        {/* 卡片交互模式欢迎界面 */}
+        {mode === 'cards' && cardsMessages.length === 0 && (
+          <div className="ai-welcome">
+            <div className="ai-welcome-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="3" width="20" height="18" rx="2"/>
+                <path d="M8 7h8M8 11h8M8 15h4"/>
+              </svg>
+            </div>
+            <h4>🃏 卡片交互模式</h4>
+            <p>用自然语言描述修改需求，AI 将以卡片形式呈现方案，您可以逐步确认或调整。</p>
+            <div className="ai-examples">
+              <div className="ai-example" onClick={() => setInputValue('优化这个页面的配色方案')}>
+                "优化这个页面的配色方案"
+              </div>
+              <div className="ai-example" onClick={() => setInputValue('重新设计导航栏的布局')}>
+                "重新设计导航栏的布局"
+              </div>
+              <div className="ai-example" onClick={() => setInputValue('把卡片列表改成网格布局')}>
+                "把卡片列表改成网格布局"
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 快速编辑模式消息列表 */}
         {mode === 'quick' && aiMessages.map((message) => (
           <div
@@ -520,7 +724,21 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
               {message.modifiedTree && (
                 <div className="ai-message-actions">
                   {message.applied ? (
-                    <span className="applied-badge">✓ 已应用</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="applied-badge">✓ 已应用</span>
+                      <button className="ai-btn ai-btn-ghost" onClick={() => {
+                        // 真正的撤销：调用 editorStore 的 undo
+                        const store = useEditorStore.getState();
+                        store.undo();
+                        // 标记此消息为未应用
+                        const updatedMsgs = aiMessages.map(msg =>
+                          msg.id === message.id ? { ...msg, applied: false } : msg
+                        );
+                        setAIMessages(updatedMsgs);
+                      }}>
+                        ↩ 撤销
+                      </button>
+                    </div>
                   ) : hasPendingModification && message === lastAssistantMessage ? (
                     <>
                       <button className="ai-btn ai-btn-primary" onClick={handleApply}>
@@ -533,7 +751,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
-                        撤销
+                        取消
                       </button>
                       <button className="ai-btn ai-btn-ghost" onClick={handleRegenerate}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -568,6 +786,16 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
           </div>
         ))}
 
+        {/* 卡片交互模式消息列表 */}
+        {mode === 'cards' && cardsMessages.map((msg) => (
+          <InteractionCard
+            key={msg.id}
+            message={msg}
+            onRespond={handleCardsRespond}
+            disabled={cardsLoading}
+          />
+        ))}
+
         {/* 快速编辑模式加载状态 */}
         {mode === 'quick' && isLoading && (
           <div className="ai-message assistant loading">
@@ -586,6 +814,22 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
 
         {/* 工作流模式加载状态 */}
         {mode === 'workflow' && workflowLoading && (
+          <div className="ai-message assistant loading">
+            <div className="ai-message-header">
+              <span className="ai-message-role">🤖 AI</span>
+            </div>
+            <div className="ai-message-content">
+              <div className="ai-loading">
+                <span className="ai-loading-dot"></span>
+                <span className="ai-loading-dot"></span>
+                <span className="ai-loading-dot"></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 卡片交互模式加载状态 */}
+        {mode === 'cards' && cardsLoading && (
           <div className="ai-message assistant loading">
             <div className="ai-message-header">
               <span className="ai-message-role">🤖 AI</span>
@@ -621,14 +865,31 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={mode === 'quick' ? "描述您想要的修改..." : "描述您的设计需求..."}
+            placeholder={
+              mode === 'quick' ? "描述您想要的修改..." :
+              mode === 'cards' ? "描述修改需求，AI 将以卡片方式呈现..." :
+              "描述您的设计需求..."
+            }
             rows={2}
-            disabled={mode === 'quick' ? isLoading : workflowLoading}
+disabled={
+  mode === 'quick' ? isLoading :
+  mode === 'cards' ? cardsLoading :
+  workflowLoading
+}
           />
           <button
             className="ai-send-btn"
-            onClick={mode === 'quick' ? handleSend : handleWorkflowSend}
-            disabled={!inputValue.trim() || (mode === 'quick' ? isLoading : workflowLoading)}
+            onClick={
+              mode === 'quick' ? handleSend :
+              mode === 'cards' ? handleCardsSend :
+              handleWorkflowSend
+            }
+disabled={
+  !inputValue.trim() ||
+  (mode === 'quick' ? isLoading :
+   mode === 'cards' ? cardsLoading :
+   workflowLoading)
+}
             title="发送 (Enter)"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -667,7 +928,9 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
         )}
 
         <div className="ai-input-hint">
-          {mode === 'quick' ? '按 Enter 发送，Shift+Enter 换行' : '按 Enter 发送，AI 将引导您完成设计'}
+          {mode === 'quick' ? '按 Enter 发送，Shift+Enter 换行' :
+           mode === 'cards' ? '按 Enter 发送，AI 将以卡片方式呈现修改方案' :
+           '按 Enter 发送，AI 将引导您完成设计'}
         </div>
       </div>
     </div>

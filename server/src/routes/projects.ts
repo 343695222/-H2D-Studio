@@ -9,6 +9,9 @@ import {
   getPage,
   updatePage,
   deletePage,
+  getPageHierarchyTree,
+  setPageParent,
+  deletePageFromHierarchy,
 } from '../services/storage.js';
 import { wsService } from '../services/websocket.js';
 
@@ -196,6 +199,56 @@ router.put('/:id/pages/:pageId', (req, res) => {
   }
 });
 
+// PUT /api/projects/:id/pages/:pageId/parent - Set page parent
+router.put('/:id/pages/:pageId/parent', (req, res) => {
+  try {
+    const { id, pageId } = req.params;
+    const { parentId } = req.body;
+
+    if (parentId !== null && typeof parentId !== 'string') {
+      res.status(400).json({ success: false, error: 'parentId must be a string or null' });
+      return;
+    }
+
+    const project = getProject(id);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const result = setPageParent(id, pageId, parentId ?? null);
+
+    if (!result) {
+      res.status(400).json({ success: false, error: 'Operation would create a cycle' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error setting page parent:', error);
+    res.status(500).json({ success: false, error: 'Failed to set page parent' });
+  }
+});
+
+// GET /api/projects/:id/page-hierarchy - Get page hierarchy tree
+router.get('/:id/page-hierarchy', (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = getProject(id);
+
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const tree = getPageHierarchyTree(id);
+    res.json({ success: true, data: tree });
+  } catch (error) {
+    console.error('Error getting page hierarchy:', error);
+    res.status(500).json({ success: false, error: 'Failed to get page hierarchy' });
+  }
+});
+
 // DELETE /api/projects/:id/pages/:pageId - Delete a page
 router.delete('/:id/pages/:pageId', (req, res) => {
   try {
@@ -213,6 +266,9 @@ router.delete('/:id/pages/:pageId', (req, res) => {
       res.status(404).json({ success: false, error: 'Page not found' });
       return;
     }
+
+    // Promote children to top-level in hierarchy
+    deletePageFromHierarchy(id, pageId);
 
     // Broadcast WebSocket event
     wsService.broadcastPageDeleted(id, pageId);

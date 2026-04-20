@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { Project, PageCapture, PageSummary, PageKnowledgeSummary } from '../types.js';
+import type { Project, PageCapture, PageSummary, PageKnowledgeSummary, PageHierarchy, PageHierarchyNode } from '../types.js';
 import { generateId, getCurrentTimestamp } from '../utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -651,4 +651,132 @@ export function buildProjectContext(projectId: string): string {
   context += `- 主要组件: ${Object.entries(allTags).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([tag, count]) => `${tag}(${count})`).join(', ')}\n`;
   
   return context;
+}
+
+
+// ========== Page Hierarchy Functions ==========
+
+// Get hierarchy file path for a project
+function getHierarchyPath(projectId: string): string {
+  return path.join(getProjectDir(projectId), 'hierarchy.json');
+}
+
+// Read the flat page hierarchy mapping from hierarchy.json
+export function getPageHierarchy(projectId: string): PageHierarchy {
+  const hierarchyPath = getHierarchyPath(projectId);
+  if (!fs.existsSync(hierarchyPath)) {
+    return {};
+  }
+  try {
+    const content = fs.readFileSync(hierarchyPath, 'utf-8');
+    return JSON.parse(content) as PageHierarchy;
+  } catch (error) {
+    console.error(`Error reading hierarchy for project ${projectId}:`, error);
+    return {};
+  }
+}
+
+// Set the parent of a page. Returns false if the operation would create a cycle.
+export function setPageParent(projectId: string, pageId: string, parentId: string | null): boolean {
+  const hierarchy = getPageHierarchy(projectId);
+
+  // Setting parent to null (top-level) is always safe
+  if (parentId !== null) {
+    // Cycle detection: walk up from parentId; if we ever reach pageId, it's a cycle
+    let current: string | null = parentId;
+    while (current !== null) {
+      if (current === pageId) {
+        // Would create a cycle
+        return false;
+      }
+      current = hierarchy[current] ?? null;
+    }
+  }
+
+  hierarchy[pageId] = parentId;
+
+  try {
+    const hierarchyPath = getHierarchyPath(projectId);
+    fs.writeFileSync(hierarchyPath, JSON.stringify(hierarchy, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`Error writing hierarchy for project ${projectId}:`, error);
+    return false;
+  }
+}
+
+// Convert flat PageHierarchy to a tree of PageHierarchyNode[]
+export function getPageHierarchyTree(projectId: string): PageHierarchyNode[] {
+  const hierarchy = getPageHierarchy(projectId);
+  const pages = getPages(projectId);
+
+  // Build a lookup map from page summaries
+  const pageSummaryMap = new Map<string, PageSummary>();
+  for (const p of pages) {
+    pageSummaryMap.set(p.id, p);
+  }
+
+  // Create nodes for every entry in the hierarchy
+  const nodeMap = new Map<string, PageHierarchyNode>();
+  for (const pageId of Object.keys(hierarchy)) {
+    const summary = pageSummaryMap.get(pageId);
+    nodeMap.set(pageId, {
+      id: pageId,
+      name: summary?.name ?? '',
+      url: summary?.url ?? '',
+      parentId: hierarchy[pageId],
+      children: [],
+      screenshotPath: summary?.screenshotPath ?? '',
+      hasEdited: summary?.hasEdited ?? false,
+    });
+  }
+
+  // Include pages not yet in the hierarchy as top-level nodes
+  for (const p of pages) {
+    if (!nodeMap.has(p.id)) {
+      nodeMap.set(p.id, {
+        id: p.id,
+        name: p.name,
+        url: p.url,
+        parentId: null,
+        children: [],
+        screenshotPath: p.screenshotPath,
+        hasEdited: p.hasEdited,
+      });
+    }
+  }
+
+  // Build tree: attach children to their parents
+  const roots: PageHierarchyNode[] = [];
+  for (const node of nodeMap.values()) {
+    if (node.parentId !== null && nodeMap.has(node.parentId)) {
+      nodeMap.get(node.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+// Remove a page from the hierarchy and promote its direct children to top-level
+export function deletePageFromHierarchy(projectId: string, pageId: string): void {
+  const hierarchy = getPageHierarchy(projectId);
+
+  // Promote all direct children of the deleted page to top-level (parentId = null)
+  for (const [childId, parentIdValue] of Object.entries(hierarchy)) {
+    if (parentIdValue === pageId) {
+      hierarchy[childId] = null;
+    }
+  }
+
+  // Remove the page itself from the hierarchy
+  delete hierarchy[pageId];
+
+  try {
+    const hierarchyPath = getHierarchyPath(projectId);
+    fs.writeFileSync(hierarchyPath, JSON.stringify(hierarchy, null, 2));
+  } catch (error) {
+    console.error(`Error writing hierarchy after deleting page ${pageId}:`, error);
+  }
 }

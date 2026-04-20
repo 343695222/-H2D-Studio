@@ -110,3 +110,136 @@ export interface Skill {
   createdAt: string;
   updatedAt: string;
 }
+
+// ========== Knowledge Base Types ==========
+
+export interface DesignSystemKnowledge {
+  projectId: string;
+  colors: ColorToken[];
+  typography: TypographyToken[];
+  spacing: SpacingToken[];
+  borderRadius: BorderRadiusToken[];
+  shadows: ShadowToken[];
+  componentPatterns: ComponentPattern[];
+  layoutPatterns: LayoutPattern[];
+  updatedAt: string;
+}
+
+export interface ColorToken {
+  value: string;          // '#1a73e8' 或 'rgb(26, 115, 232)'
+  usage: 'primary' | 'secondary' | 'accent' | 'background' | 'text' | 'border' | 'unknown';
+  frequency: number;      // 使用次数
+  sourcePages: string[];  // 来源页面ID
+  isCustom?: boolean;     // 用户自定义条目标记
+}
+
+export interface TypographyToken {
+  fontSize: string;       // '14px'
+  fontWeight: string;     // '400' | '500' | '600' | '700'
+  fontFamily: string;     // 字体族
+  lineHeight: string;     // '1.5' 或 '21px'
+  usage: 'heading' | 'body' | 'caption' | 'label' | 'unknown';
+  frequency: number;
+  sourcePages: string[];
+  isCustom?: boolean;     // 用户自定义条目标记
+}
+
+export interface SpacingToken {
+  value: number;          // 16
+  unit: string;           // 'px'
+  frequency: number;
+  sourcePages: string[];
+  isCustom?: boolean;     // 用户自定义条目标记
+}
+
+export interface BorderRadiusToken {
+  value: string;          // '4px' | '50%' | '8px'
+  frequency: number;
+  sourcePages: string[];
+  isCustom?: boolean;     // 用户自定义条目标记
+}
+
+export interface ShadowToken {
+  value: string;          // '0 2px 8px rgba(0,0,0,0.1)'
+  frequency: number;
+  sourcePages: string[];
+  isCustom?: boolean;     // 用户自定义条目标记
+}
+
+export interface ComponentPattern {
+  name: string;           // 'card' | 'form' | 'table' | 'navbar' | 'list' | 'button' | 'input'
+  description: string;    // AI 生成的组件描述
+  structureHash: string;  // 结构指纹（用于快速匹配）
+  typicalStyles: Record<string, string>; // 典型样式
+  typicalTag: string;     // 典型 HTML 标签
+  childCount: { min: number; max: number }; // 子元素数量范围
+  frequency: number;      // 出现次数
+  sourcePages: string[];
+}
+
+export interface LayoutPattern {
+  name: string;           // 'sidebar-content' | 'full-width-list' | 'centered-form' | 'dashboard'
+  description: string;
+  direction: 'row' | 'column' | 'mixed';
+  childCount: number;     // 直接子元素数量
+  frequency: number;
+  sourcePages: string[];
+}
+
+
+// ========== Page Hierarchy Types ==========
+
+export interface PageHierarchy {
+  [pageId: string]: string | null;  // pageId -> parentId, null 表示顶级页面
+}
+
+export interface PageHierarchyNode {
+  id: string;
+  name: string;
+  url: string;
+  parentId: string | null;
+  children: PageHierarchyNode[];
+  screenshotPath: string;
+  hasEdited: boolean;
+}
+
+// ========== Design Knowledge Base Types ==========
+
+export interface DesignKnowledgeBase {
+  projectId: string;           // 项目ID，全局库为 'global'
+  componentTemplates: ComponentTemplate[];
+  interactionPatterns: InteractionPattern[];
+  designPrinciples: DesignPrinciple[];
+  updatedAt: string;
+}
+
+export interface ComponentTemplate {
+  id: string;                  // UUID
+  name: string;                // 组件名称
+  description: string;         // 描述
+  applicableScenes: string[];  // 适用场景
+  htmlTemplate: string;        // HTML/CSS 结构模板
+  previewImagePath?: string;   // 预览截图路径
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InteractionPattern {
+  id: string;
+  name: string;                // 模式名称
+  description: string;         // 描述
+  triggerCondition: string;    // 触发条件
+  interactionFlow: string;     // 交互流程描述
+  applicableComponents: string[]; // 适用组件列表
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DesignPrinciple {
+  id: string;
+  name: string;                // 原则名称
+  description: string;         // 描述
+  rules: string[];             // 具体规则列表
+  createdAt: string;
+  updatedAt: string;
+}

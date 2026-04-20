@@ -112,6 +112,10 @@ export async function listAgentSessions(projectId: string) {
   return apiGet<any[]>(`/agent/sessions?projectId=${projectId}`);
 }
 
+export async function rollbackAgentStage(sessionId: string, targetStage: string) {
+  return apiPost<{ response: string; stage: string }>(`/agent/sessions/${sessionId}/rollback`, { targetStage });
+}
+
 // ========== Design Workflow API ==========
 
 export async function startDesignWorkflow(params: {
@@ -136,4 +140,22 @@ export async function advanceDesignWorkflow(
   sessionId: string
 ): Promise<{ response: string; stage: string; stateVariants?: any[] }> {
   return apiPost(`/ai/design-workflow/${sessionId}/advance`, {});
+}
+
+// ========== Knowledge Base API ==========
+
+export async function getKnowledgeBase(projectId: string) {
+  return apiGet<any>(`/knowledge/${projectId}`);
+}
+
+export async function rebuildKnowledgeBase(projectId: string) {
+  return apiPost<any>(`/knowledge/${projectId}/rebuild`);
+}
+
+export async function updateKnowledgeBase(projectId: string, pageId: string) {
+  return apiPost<any>(`/knowledge/${projectId}/update`, { pageId });
+}
+
+export async function getKnowledgeContext(projectId: string) {
+  return apiGet<{ context: string }>(`/knowledge/${projectId}/context`);
 }

@@ -1,0 +1,510 @@
+/* ========== Design Knowledge Base Page ========== */
+
+.dkb-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+.dkb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+/* ========== Search Bar ========== */
+
+.dkb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 400px;
+  margin-left: 20px;
+}
+
+.dkb-search-input {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.dkb-search-input:focus {
+  border-color: #4a90d9;
+}
+
+.dkb-search-input::placeholder {
+  color: #bfbfbf;
+}
+
+/* ========== Tabs ========== */
+
+.dkb-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.dkb-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #8c8c8c;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.dkb-tab:hover {
+  color: #262626;
+  background: #fafafa;
+}
+
+.dkb-tab-active {
+  color: #4a90d9;
+  border-bottom-color: #4a90d9;
+  font-weight: 500;
+}
+
+.dkb-tab-count {
+  font-size: 11px;
+  background: #f0f0f0;
+  color: #8c8c8c;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.dkb-tab-active .dkb-tab-count {
+  background: #e6f0fa;
+  color: #4a90d9;
+}
+
+/* ========== Tab Actions ========== */
+
+.dkb-tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 20px 0;
+  background: #f5f5f5;
+}
+
+.dkb-add-btn {
+  padding: 5px 14px;
+  border: 1px dashed #4a90d9;
+  border-radius: 6px;
+  background: #fff;
+  color: #4a90d9;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dkb-add-btn:hover {
+  background: #e6f0fa;
+}
+
+/* ========== Content ========== */
+
+.dkb-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.dkb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dkb-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.dkb-card:hover {
+  border-color: #d0d0d0;
+}
+
+.dkb-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dkb-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dkb-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.dkb-card-desc {
+  font-size: 12px;
+  color: #595959;
+  line-height: 1.5;
+}
+
+/* ========== Tags ========== */
+
+.dkb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.dkb-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: #f0f5ff;
+  color: #4a90d9;
+  border: 1px solid #d6e4ff;
+}
+
+/* ========== Component Template Preview ========== */
+
+.dkb-preview-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  background: #fafafa;
+}
+
+.dkb-preview-placeholder {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  border: 1px dashed #d9d9d9;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #d9d9d9;
+  background: #fafafa;
+}
+
+/* ========== Interaction Pattern ========== */
+
+.dkb-trigger {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.dkb-trigger strong {
+  color: #595959;
+  font-weight: 500;
+}
+
+/* ========== Design Principle Rules ========== */
+
+.dkb-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.dkb-rule {
+  font-size: 11px;
+  color: #595959;
+  padding-left: 12px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.dkb-rule::before {
+  content: '•';
+  position: absolute;
+  left: 2px;
+  color: #bfbfbf;
+}
+
+/* ========== Card Actions ========== */
+
+.dkb-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.dkb-card:hover .dkb-card-actions {
+  opacity: 1;
+}
+
+.dkb-card-actions button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.dkb-card-actions .dkb-edit-btn:hover {
+  background: #e6f0fa;
+}
+
+.dkb-card-actions .dkb-del-btn:hover {
+  background: #fff1f0;
+}
+
+/* ========== Empty State ========== */
+
+.dkb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: #bfbfbf;
+  font-size: 14px;
+}
+
+.dkb-loading {
+  text-align: center;
+  padding: 60px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* ========== Modal (reuse km-modal pattern) ========== */
+
+.dkb-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dkb-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 500px;
+  max-width: 90vw;
+  max-height: 85vh;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dkb-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  flex-shrink: 0;
+}
+
+.dkb-modal-close {
+  border: none;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #8c8c8c;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.dkb-modal-close:hover {
+  background: #f5f5f5;
+  color: #262626;
+}
+
+.dkb-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dkb-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dkb-modal-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.dkb-modal-field input[type="text"],
+.dkb-modal-field textarea {
+  padding: 7px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.dkb-modal-field input[type="text"]:focus,
+.dkb-modal-field textarea:focus {
+  border-color: #4a90d9;
+}
+
+.dkb-modal-field textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.dkb-modal-hint {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
+.dkb-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.dkb-modal-cancel,
+.dkb-modal-save {
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dkb-modal-cancel {
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #595959;
+}
+
+.dkb-modal-cancel:hover {
+  border-color: #bfbfbf;
+}
+
+.dkb-modal-save {
+  border: none;
+  background: #4a90d9;
+  color: #fff;
+}
+
+.dkb-modal-save:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.dkb-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========== Rules Editor in Modal ========== */
+
+.dkb-rules-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dkb-rule-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dkb-rule-row input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+
+.dkb-rule-row input:focus {
+  border-color: #4a90d9;
+}
+
+.dkb-rule-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #bfbfbf;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.dkb-rule-remove:hover {
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.dkb-rule-add {
+  align-self: flex-start;
+  border: 1px dashed #d9d9d9;
+  background: none;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+  cursor: pointer;
+}
+
+.dkb-rule-add:hover {
+  border-color: #4a90d9;
+  color: #4a90d9;
+}

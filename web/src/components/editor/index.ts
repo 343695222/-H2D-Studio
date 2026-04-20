@@ -1,5 +1,5 @@
 export { EditorToolbar } from './EditorToolbar.tsx';
-export { Canvas } from './Canvas.tsx';
+export { Canvas } from './canvas/index.ts';
 export { LayerPanel } from './LayerPanel.tsx';
 export { PropertyPanel } from './PropertyPanel.tsx';
 export { CodePanel } from './CodePanel.tsx';

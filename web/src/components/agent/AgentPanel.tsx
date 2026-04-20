@@ -4,6 +4,7 @@ import {
   sendAgentMessage,
   advanceAgentStage,
   getAgentPRD,
+  rollbackAgentStage,
 } from '../../api/client.ts';
 import './AgentPanel.css';
 
@@ -22,14 +23,17 @@ interface Message {
   timestamp: string;
 }
 
-type AgentStage = 'discovery' | 'clarifying' | 'requirement' | 'prd' | 'prototype' | 'done';
+type AgentStage = 'discovery' | 'clarifying' | 'requirement' | 'prd' | 'designPrinciples' | 'wireframe' | 'hifi' | 'codeExport' | 'done';
 
 const STAGES: { id: AgentStage; label: string }[] = [
-  { id: 'discovery', label: 'Discovery' },
-  { id: 'clarifying', label: 'Clarify' },
-  { id: 'requirement', label: 'Requirement' },
+  { id: 'discovery', label: '发现' },
+  { id: 'clarifying', label: '澄清' },
+  { id: 'requirement', label: '需求' },
   { id: 'prd', label: 'PRD' },
-  { id: 'prototype', label: 'Prototype' },
+  { id: 'designPrinciples', label: '设计原则' },
+  { id: 'wireframe', label: '线框' },
+  { id: 'hifi', label: '高保真' },
+  { id: 'codeExport', label: '代码导出' },
 ];
 
 // 简单的 Markdown 渲染函数
@@ -51,6 +55,72 @@ function renderMarkdown(markdown: string): string {
     .replace(/\n/gim, '<br>');
 }
 
+// 解析 AI 消息中的问题列表
+function parseQuestions(content: string): { index: number; text: string }[] | null {
+  const lines = content.split('\n');
+  const questions: { index: number; text: string }[] = [];
+  // Match patterns: "1. xxx", "1、xxx", "1) xxx", "- xxx"
+  const numberedRe = /^\s*(\d+)\s*[.、)]\s*(.+)/;
+  const bulletRe = /^\s*[-•]\s+(.+)/;
+  let bulletIdx = 0;
+  for (const line of lines) {
+    const nm = line.match(numberedRe);
+    if (nm) {
+      questions.push({ index: parseInt(nm[1], 10), text: nm[2].trim() });
+      continue;
+    }
+    const bm = line.match(bulletRe);
+    if (bm) {
+      bulletIdx++;
+      questions.push({ index: bulletIdx, text: bm[1].trim() });
+    }
+  }
+  return questions.length >= 2 ? questions : null;
+}
+
+function QuestionCards({
+  questions,
+  answers,
+  onAnswerChange,
+  onSubmit,
+  disabled,
+}: {
+  questions: { index: number; text: string }[];
+  answers: Record<number, string>;
+  onAnswerChange: (index: number, value: string) => void;
+  onSubmit: () => void;
+  disabled: boolean;
+}) {
+  const hasAnyAnswer = Object.values(answers).some((v) => v.trim());
+  return (
+    <div className="question-cards">
+      {questions.map((q) => (
+        <div key={q.index} className="question-card">
+          <div className="question-card-header">
+            <span className="question-card-number">{q.index}</span>
+            <span className="question-card-text">{q.text}</span>
+          </div>
+          <textarea
+            className="question-card-input"
+            placeholder="输入你的回答..."
+            value={answers[q.index] || ''}
+            onChange={(e) => onAnswerChange(q.index, e.target.value)}
+            rows={2}
+            disabled={disabled}
+          />
+        </div>
+      ))}
+      <button
+        className="question-cards-submit"
+        onClick={onSubmit}
+        disabled={disabled || !hasAnyAnswer}
+      >
+        提交回答
+      </button>
+    </div>
+  );
+}
+
 export default function AgentPanel({
   projectId,
   projectName,
@@ -65,6 +135,8 @@ export default function AgentPanel({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPrdPreview, setShowPrdPreview] = useState(false);
+  const [questionAnswers, setQuestionAnswers] = useState<Record<number, string>>({});
+  const [modificationFeedback, setModificationFeedback] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -208,11 +280,147 @@ export default function AgentPanel({
     }
   };
 
+  const handleRollbackStage = async (targetStage: AgentStage) => {
+    if (!sessionId || isLoading) return;
+    const targetIndex = getStageIndex(targetStage);
+    const currentIndex = getStageIndex(stage);
+    // Only allow rollback to completed (earlier) stages
+    if (targetIndex >= currentIndex || targetIndex < 0) return;
+
+    setIsLoading(true);
+    try {
+      const response = await rollbackAgentStage(sessionId, targetStage);
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: response.response,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setStage(response.stage as AgentStage);
+    } catch (error) {
+      console.error('Error rolling back stage:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: '回退阶段失败，请稍后重试。',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getStageIndex = (s: AgentStage) => {
     return STAGES.findIndex((st) => st.id === s);
   };
 
   const currentStageIndex = getStageIndex(stage);
+
+  // Detect structured questions in the last AI message during clarifying stage
+  const lastAiMessage = [...messages].reverse().find((m) => m.role === 'assistant');
+  const clarifyQuestions =
+    stage === 'clarifying' && lastAiMessage ? parseQuestions(lastAiMessage.content) : null;
+
+  const handleSubmitAnswers = () => {
+    if (!clarifyQuestions || isLoading) return;
+    const parts = clarifyQuestions
+      .filter((q) => (questionAnswers[q.index] || '').trim())
+      .map((q) => `${q.index}. ${questionAnswers[q.index].trim()}`);
+    if (parts.length === 0) return;
+    setQuestionAnswers({});
+    setInputValue(parts.join('\n'));
+    // Auto-send after setting input
+    setTimeout(() => {
+      const fakeInput = parts.join('\n');
+      setInputValue('');
+      // Directly trigger send with the composed message
+      const userMessage = fakeInput;
+      const newUserMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: userMessage,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, newUserMessage]);
+      setIsLoading(true);
+      sendAgentMessage(sessionId!, userMessage)
+        .then((response) => {
+          const aiMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: response.response,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+          setStage(response.stage as AgentStage);
+          if (response.prd) {
+            setPrd(response.prd);
+            setShowPrdPreview(true);
+          }
+        })
+        .catch((error) => {
+          console.error('Error sending answers:', error);
+          const errorMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: '抱歉，处理消息时出现了错误。请稍后重试。',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+        })
+        .finally(() => setIsLoading(false));
+    }, 0);
+  };
+
+  // Whether the current stage is a prototype generation stage
+  const isPrototypeStage = stage === 'wireframe' || stage === 'hifi' || stage === 'codeExport';
+
+  const handleSendModification = async () => {
+    if (!modificationFeedback.trim() || !sessionId || isLoading) return;
+
+    const feedback = modificationFeedback.trim();
+    setModificationFeedback('');
+
+    const prefixedMessage = `请根据以下修改意见重新生成，保留满意的部分：\n${feedback}`;
+
+    const newUserMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: prefixedMessage,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages((prev) => [...prev, newUserMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await sendAgentMessage(sessionId, prefixedMessage);
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.response,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+      setStage(response.stage as AgentStage);
+      if (response.prd) {
+        setPrd(response.prd);
+        setShowPrdPreview(true);
+      }
+    } catch (error) {
+      console.error('Error sending modification feedback:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '抱歉，处理修改意见时出现了错误。请稍后重试。',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="agent-panel-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -228,33 +436,39 @@ export default function AgentPanel({
             </button>
             <h2 className="agent-panel-title">AI 产品助手 - {projectName}</h2>
           </div>
+        </div>
 
-          {/* 进度条 */}
-          <div className="agent-panel-progress">
-            {STAGES.map((s, index) => (
-              <span key={s.id}>
-                <span
-                  className={`progress-step ${
-                    index < currentStageIndex
-                      ? 'completed'
-                      : index === currentStageIndex
-                      ? 'active'
-                      : ''
-                  }`}
+        {/* 阶段进度指示器 */}
+        <div className="stage-progress-bar">
+          {STAGES.map((s, index) => {
+            const isCompleted = index < currentStageIndex;
+            const isActive = index === currentStageIndex;
+            const isFuture = index > currentStageIndex;
+            return (
+              <div key={s.id} className="stage-progress-item">
+                <button
+                  className={`stage-progress-step${isCompleted ? ' completed' : ''}${isActive ? ' active' : ''}${isFuture ? ' future' : ''}`}
+                  onClick={() => isCompleted && handleRollbackStage(s.id)}
+                  disabled={!isCompleted || isLoading}
+                  title={isCompleted ? `回退到「${s.label}」阶段` : s.label}
                 >
-                  {index < currentStageIndex ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  ) : null}
-                  {s.label}
-                </span>
+                  <span className="stage-progress-dot">
+                    {isCompleted ? (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    ) : (
+                      <span className="stage-dot-inner" />
+                    )}
+                  </span>
+                  <span className="stage-progress-label">{s.label}</span>
+                </button>
                 {index < STAGES.length - 1 && (
-                  <span className="progress-arrow">→</span>
+                  <div className={`stage-progress-connector${index < currentStageIndex ? ' completed' : ''}`} />
                 )}
-              </span>
-            ))}
-          </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Body */}
@@ -297,8 +511,42 @@ export default function AgentPanel({
                   </div>
                 </div>
               )}
+              {clarifyQuestions && !isLoading && (
+                <QuestionCards
+                  questions={clarifyQuestions}
+                  answers={questionAnswers}
+                  onAnswerChange={(idx, val) =>
+                    setQuestionAnswers((prev) => ({ ...prev, [idx]: val }))
+                  }
+                  onSubmit={handleSubmitAnswers}
+                  disabled={isLoading}
+                />
+              )}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* 修改意见区域 — 原型生成阶段显示 */}
+            {isPrototypeStage && sessionId && !isLoading && messages.length > 0 && (
+              <div className="modification-feedback-area">
+                <label className="modification-feedback-label">
+                  对生成结果不满意？描述修改意见：
+                </label>
+                <textarea
+                  className="modification-feedback-input"
+                  placeholder="例如：按钮颜色改为蓝色，保留当前布局不变..."
+                  value={modificationFeedback}
+                  onChange={(e) => setModificationFeedback(e.target.value)}
+                  rows={3}
+                />
+                <button
+                  className="modification-feedback-btn"
+                  onClick={handleSendModification}
+                  disabled={!modificationFeedback.trim()}
+                >
+                  🔄 重新生成
+                </button>
+              </div>
+            )}
 
             {/* 输入区域 */}
             <div className="chat-input-area">
@@ -331,7 +579,7 @@ export default function AgentPanel({
               </div>
 
               <div className="chat-actions">
-                {sessionId && stage !== 'done' && stage !== 'prototype' && (
+                {sessionId && stage !== 'done' && stage !== 'codeExport' && (
                   <button
                     className="chat-action-btn"
                     onClick={handleAdvanceStage}
@@ -343,7 +591,7 @@ export default function AgentPanel({
                     跳到下一阶段
                   </button>
                 )}
-                {(prd || stage === 'prd' || stage === 'prototype' || stage === 'done') && (
+                {(prd || stage === 'prd' || stage === 'designPrinciples' || stage === 'wireframe' || stage === 'hifi' || stage === 'codeExport' || stage === 'done') && (
                   <button
                     className="chat-action-btn primary"
                     onClick={handleExportPRD}

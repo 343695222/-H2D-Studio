@@ -1,0 +1,821 @@
+/* ========== Design System Page Styles ========== */
+
+.design-system-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+.ds-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.ds-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.ds-nav .nav-link {
+  color: #4a90d9;
+  text-decoration: none;
+}
+
+.ds-nav .nav-link:hover {
+  text-decoration: underline;
+}
+
+.ds-nav .nav-sep {
+  color: #bfbfbf;
+  margin: 0 4px;
+}
+
+.ds-nav .nav-current {
+  color: #262626;
+  font-weight: 500;
+}
+
+.ds-rebuild-btn {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ds-rebuild-btn:hover:not(:disabled) {
+  border-color: #4a90d9;
+  color: #4a90d9;
+}
+
+.ds-rebuild-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========== Content ========== */
+
+.ds-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+  align-content: start;
+}
+
+.ds-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.ds-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px;
+  color: #bfbfbf;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 14px;
+  text-align: center;
+  max-width: 300px;
+}
+
+/* ========== Sections ========== */
+
+.ds-section {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid #e8e8e8;
+}
+
+.ds-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* ========== Color Palette ========== */
+
+.ds-color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ds-color-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.swatch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.swatch-value {
+  font-size: 12px;
+  font-family: monospace;
+  color: #262626;
+}
+
+.swatch-usage {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ========== Typography ========== */
+
+.ds-typography-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ds-typo-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.typo-size {
+  width: 40px;
+  text-align: center;
+  font-weight: 600;
+  color: #262626;
+}
+
+.typo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.typo-usage {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ========== Spacing ========== */
+
+.ds-spacing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-spacing-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spacing-bar {
+  height: 12px;
+  background: #4a90d9;
+  border-radius: 3px;
+  min-width: 4px;
+}
+
+.spacing-value {
+  font-size: 12px;
+  font-family: monospace;
+  color: #262626;
+  min-width: 40px;
+}
+
+.spacing-freq {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ========== Component Patterns ========== */
+
+.ds-component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-component-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.comp-name {
+  font-weight: 500;
+  color: #262626;
+  min-width: 60px;
+}
+
+.comp-freq {
+  font-size: 12px;
+  color: #4a90d9;
+  font-weight: 500;
+}
+
+.comp-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  flex: 1;
+}
+
+/* ========== Layout Patterns ========== */
+
+.ds-layout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-layout-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.layout-name {
+  font-weight: 500;
+  color: #262626;
+  min-width: 120px;
+}
+
+.layout-freq {
+  font-size: 12px;
+  color: #4a90d9;
+  font-weight: 500;
+}
+
+.layout-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  flex: 1;
+}
+
+
+/* ========== Knowledge Management Tabs ========== */
+
+.km-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.km-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #8c8c8c;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.km-tab:hover {
+  color: #262626;
+  background: #fafafa;
+}
+
+.km-tab-active {
+  color: #4a90d9;
+  border-bottom-color: #4a90d9;
+  font-weight: 500;
+}
+
+.km-tab-icon {
+  font-size: 14px;
+}
+
+.km-tab-count {
+  font-size: 11px;
+  background: #f0f0f0;
+  color: #8c8c8c;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.km-tab-active .km-tab-count {
+  background: #e6f0fa;
+  color: #4a90d9;
+}
+
+/* ========== Knowledge Management Content ========== */
+
+.km-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px;
+}
+
+.km-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.km-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  transition: border-color 0.2s;
+}
+
+.km-card:hover {
+  border-color: #d0d0d0;
+}
+
+.km-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.km-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.km-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #8c8c8c;
+  flex-wrap: wrap;
+}
+
+/* ========== Custom Badge ========== */
+
+.km-custom-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #fff7e6;
+  color: #d48806;
+  border: 1px solid #ffe58f;
+  white-space: nowrap;
+}
+
+/* ========== Frequency ========== */
+
+.km-freq {
+  font-size: 12px;
+  color: #4a90d9;
+  font-weight: 500;
+}
+
+/* ========== Usage Tag ========== */
+
+.km-usage-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: #f5f5f5;
+  color: #595959;
+}
+
+/* ========== Source Pages ========== */
+
+.km-source-pages {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
+/* ========== Colors ========== */
+
+.km-color-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.km-color-value {
+  font-family: monospace;
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+/* ========== Typography ========== */
+
+.km-typo-preview {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  border-radius: 8px;
+  color: #262626;
+  flex-shrink: 0;
+}
+
+.km-typo-spec {
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.km-typo-lh {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+/* ========== Spacing ========== */
+
+.km-spacing-bar {
+  height: 14px;
+  background: #4a90d9;
+  border-radius: 4px;
+  min-width: 4px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.km-spacing-value {
+  font-family: monospace;
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+/* ========== Border Radius ========== */
+
+.km-radius-preview {
+  width: 40px;
+  height: 40px;
+  background: #4a90d9;
+  flex-shrink: 0;
+}
+
+.km-radius-value {
+  font-family: monospace;
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+/* ========== Shadows ========== */
+
+.km-shadow-preview {
+  width: 40px;
+  height: 40px;
+  background: #fff;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.km-shadow-value {
+  font-family: monospace;
+  font-size: 12px;
+  color: #262626;
+  word-break: break-all;
+}
+
+/* ========== Component Patterns ========== */
+
+.km-comp-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.km-comp-desc {
+  font-size: 12px;
+  color: #595959;
+  line-height: 1.4;
+}
+
+.km-comp-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.km-style-tag {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  color: #595959;
+}
+
+/* ========== Layout Patterns ========== */
+
+.km-layout-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.km-layout-desc {
+  font-size: 12px;
+  color: #595959;
+  line-height: 1.4;
+}
+
+.km-layout-dir,
+.km-layout-children {
+  font-size: 11px;
+  padding: 1px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  color: #595959;
+}
+
+/* ========== Empty Tab ========== */
+
+.km-empty-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: #bfbfbf;
+  font-size: 14px;
+}
+
+/* ========== Tab Actions (Add button row) ========== */
+
+.km-tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 20px 0;
+  background: #f5f5f5;
+}
+
+.km-add-btn {
+  padding: 5px 14px;
+  border: 1px dashed #4a90d9;
+  border-radius: 6px;
+  background: #fff;
+  color: #4a90d9;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.km-add-btn:hover {
+  background: #e6f0fa;
+}
+
+/* ========== Card Actions (Edit / Delete) ========== */
+
+.km-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.km-card:hover .km-card-actions {
+  opacity: 1;
+}
+
+.km-edit-btn,
+.km-delete-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.km-edit-btn:hover {
+  background: #e6f0fa;
+}
+
+.km-delete-btn:hover {
+  background: #fff1f0;
+}
+
+/* Make cards clickable when editable */
+.km-card[onclick],
+.km-card:has(.km-card-actions) {
+  cursor: pointer;
+}
+
+/* ========== Modal ========== */
+
+.km-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.km-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.km-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.km-modal-close {
+  border: none;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #8c8c8c;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.km-modal-close:hover {
+  background: #f5f5f5;
+  color: #262626;
+}
+
+.km-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.km-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.km-modal-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.km-modal-field input[type="text"],
+.km-modal-field select {
+  padding: 7px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.km-modal-field input[type="text"]:focus,
+.km-modal-field select:focus {
+  border-color: #4a90d9;
+}
+
+.km-modal-color-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.km-modal-color-row input[type="color"] {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.km-modal-color-row input[type="text"] {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: monospace;
+  outline: none;
+}
+
+.km-modal-color-row input[type="text"]:focus {
+  border-color: #4a90d9;
+}
+
+.km-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.km-modal-cancel,
+.km-modal-save {
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.km-modal-cancel {
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #595959;
+}
+
+.km-modal-cancel:hover {
+  border-color: #bfbfbf;
+}
+
+.km-modal-save {
+  border: none;
+  background: #4a90d9;
+  color: #fff;
+}
+
+.km-modal-save:hover:not(:disabled) {
+  background: #3a7bc8;
+}
+
+.km-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

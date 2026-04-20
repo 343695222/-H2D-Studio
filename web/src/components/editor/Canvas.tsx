@@ -349,6 +349,18 @@ const CaptureNodeRenderer = React.memo(({ node }: { node: SnapshotNode }) => {
     style.position = 'absolute';
   }
 
+  // Editor editing mode: expand scroll containers to show all content
+  // In the editor all captured content should be visible and editable
+  if (style.overflow === 'scroll' || style.overflow === 'auto' || style.overflow === 'hidden') {
+    style.overflow = 'visible';
+  }
+  if (style.overflowX === 'scroll' || style.overflowX === 'auto' || style.overflowX === 'hidden') {
+    style.overflowX = 'visible';
+  }
+  if (style.overflowY === 'scroll' || style.overflowY === 'auto' || style.overflowY === 'hidden') {
+    style.overflowY = 'visible';
+  }
+
   // SVG content node: render SVG content via dangerouslySetInnerHTML
   if (el.content && el.tag === 'SVG') {
     return <div style={style} dangerouslySetInnerHTML={{ __html: el.content }} />;
@@ -418,6 +430,7 @@ function renderNodeOverlays(
 export function Canvas() {
   const {
     captureTree,
+    previewTree,
     screenshotUrl,
     zoom,
     panX,
@@ -447,8 +460,11 @@ export function Canvas() {
     setShowAIPanel
   } = useEditorStore();
 
+  // AI 预览优先：当有 previewTree 时显示预览，否则显示原始 captureTree
+  const displayTree = previewTree || captureTree;
+
   // 计算根节点偏移，用于对齐 overlay 与内容层
-  const rootRect = captureTree?.root?.rect;
+  const rootRect = displayTree?.root?.rect;
   const rootOffsetX = rootRect?.x ?? 0;
   const rootOffsetY = rootRect?.y ?? 0;
 
@@ -791,7 +807,7 @@ export function Canvas() {
   // 获取hover的节点
   const hoveredNode = hoveredNodeId ? findNodeById(hoveredNodeId) : null;
 
-  if (!captureTree) {
+  if (!displayTree) {
     return (
       <div className="canvas-container canvas-empty" ref={canvasRef}>
         <div className="canvas-placeholder">
@@ -827,32 +843,32 @@ export function Canvas() {
             alt="Page Screenshot"
             className="canvas-screenshot"
             style={{
-              width: captureTree.documentRect?.width || captureTree.root?.rect?.width || '100%',
-              height: captureTree.documentRect?.height || captureTree.root?.rect?.height || '100%',
+              width: displayTree.documentRect?.width || displayTree.root?.rect?.width || '100%',
+              height: displayTree.documentRect?.height || displayTree.root?.rect?.height || '100%',
             }}
             draggable={false}
           />
         )}
         
         {/* 内容渲染层 - 渲染 captureTree 实际内容 */}
-        {captureTree.root && captureTree.root.rect && (
+        {displayTree.root && displayTree.root.rect && (
           <div className="capture-content-layer" style={{
             position: 'absolute',
             left: 0,
             top: 0,
-            width: captureTree.root.rect.cssWidth || captureTree.root.rect.width,
-            height: captureTree.root.rect.cssHeight || captureTree.root.rect.height,
-            overflow: 'hidden',
+            width: displayTree.root.rect.cssWidth || displayTree.root.rect.width,
+            height: displayTree.root.rect.cssHeight || displayTree.root.rect.height,
+            overflow: 'visible',
             pointerEvents: 'none',
           }}>
-            <CaptureNodeRenderer node={captureTree.root} />
+            <CaptureNodeRenderer node={displayTree.root} />
           </div>
         )}
         
         {/* 节点叠加层容器 */}
         <div className="node-overlays-container">
           {renderNodeOverlays(
-            captureTree.root,
+            displayTree.root,
             selectedNodeIds,
             hoveredNodeId,
             selectNode,

@@ -4,11 +4,23 @@ import { HumanMessage, AIMessage, SystemMessage, BaseMessage } from '@langchain/
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildProjectContext, getPages } from './storage.js';
+import { buildProjectContext, getPages, getPageHierarchyTree } from './storage.js';
+import { getKnowledgeBase, toContextString } from './knowledgeBase.js';
+import { getDesignKnowledgeBase, toDesignKnowledgeContextString } from './designKnowledgeBase.js';
+import type { PageHierarchyNode } from '../types.js';
 
 // ========== 类型定义 ==========
 
-export type AgentStage = 'discovery' | 'clarifying' | 'requirement' | 'prd' | 'prototype' | 'done';
+export type AgentStage =
+  | 'discovery'
+  | 'clarifying'
+  | 'requirement'
+  | 'prd'
+  | 'designPrinciples'
+  | 'wireframe'
+  | 'hifi'
+  | 'codeExport'
+  | 'done';
 
 // LangGraph State 定义
 const AgentStateAnnotation = Annotation.Root({
@@ -47,6 +59,46 @@ const AgentStateAnnotation = Annotation.Root({
   shouldAdvance: Annotation<boolean>({
     reducer: (_prev, next) => next,
     default: () => false,
+  }),
+  // 新增：知识库上下文
+  knowledgeContext: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => '',
+  }),
+  // 新增：设计知识库上下文
+  designKnowledgeContext: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => '',
+  }),
+  // 新增：页面层级上下文
+  pageHierarchyContext: Annotation<string>({
+    reducer: (_prev, next) => next,
+    default: () => '',
+  }),
+  // 新增：设计原则文档
+  designPrinciplesDoc: Annotation<string>({
+    reducer: (_prev, next) => next || _prev,
+    default: () => '',
+  }),
+  // 新增：线框 CaptureTree JSON
+  wireframeTree: Annotation<unknown>({
+    reducer: (_prev, next) => next,
+    default: () => null,
+  }),
+  // 新增：高保真 CaptureTree JSON
+  hifiTree: Annotation<unknown>({
+    reducer: (_prev, next) => next,
+    default: () => null,
+  }),
+  // 新增：生成的代码
+  generatedCode: Annotation<string>({
+    reducer: (_prev, next) => next || _prev,
+    default: () => '',
+  }),
+  // 新增：阶段历史记录（用于回退功能）
+  stageHistory: Annotation<AgentStage[]>({
+    reducer: (prev, next) => [...prev, ...next],
+    default: () => [],
   }),
 });
 
@@ -166,24 +218,89 @@ const PRD_PROMPT = `你是一位产品文档撰写专家。基于前面的需求
 
 在回复末尾加上标记 [PRD_DONE]`;
 
-const PROTOTYPE_PROMPT = `你是一位原型设计师。基于PRD中的页面变更清单，描述每个页面需要进行的具体视觉和交互修改。
+// ========== 新增 Prompt ==========
 
-注意：此阶段只生成修改方案描述，不直接修改CaptureTree结构。用户可以在编辑器中逐个应用修改。
+const DESIGN_PRINCIPLES_PROMPT = `你是一位设计系统专家。基于PRD文档和项目知识库中的设计规范，提取设计原则。
 
-请为每个需要修改的页面输出：
-1. 页面名称
-2. 修改概述
-3. 具体修改项（每项包含：位置、修改内容、样式变化）
-4. 新增元素描述（如需要）
+项目知识库：
+{knowledgeContext}
 
-在回复末尾加上标记 [PROTOTYPE_DONE]`;
+请输出设计原则，包含：
+1. **视觉风格**：基于知识库的色彩、字体、间距规范
+2. **组件选择**：应使用哪些组件模式（卡片、表单、表格等）
+3. **布局策略**：推荐使用哪种布局模式
+4. **交互规范**：按钮样式、弹窗行为、加载状态等
+5. **响应式策略**：如何适配不同屏幕尺寸
+
+在回复末尾加上标记 [DESIGN_PRINCIPLES_DONE]`;
+
+const WIREFRAME_PROMPT = `你是一位线框设计师。基于PRD中的页面变更清单和设计原则，为每个新页面生成线框结构。
+
+设计原则：
+{designPrinciples}
+
+请为每个页面生成一个 CaptureTree 线框 JSON。线框要求：
+- 使用灰色占位色 #e0e0e0，文字用 #999
+- 每个占位块标注语义角色（如 "搜索栏"、"表格"、"分页"）
+- 结构符合 CaptureTree 格式：{ root: { nodeType:1, tag:"div", styles:{}, rect:{x,y,width,height,cssWidth,cssHeight}, childNodes:[] } }
+- 布局使用 flex/grid，参考知识库中的布局模式
+
+输出格式：对每个页面，先简要描述线框结构，然后输出 JSON 块：
+\`\`\`json
+{ "root": { ... }, "documentTitle": "...", "documentRect": {...}, "viewportRect": {...}, "devicePixelRatio": 1 }
+\`\`\`
+
+在回复末尾加上标记 [WIREFRAME_DONE]`;
+
+const HIFI_PROMPT = `你是一位高保真设计师。基于线框结构和知识库中的设计规范，将线框升级为高保真设计。
+
+知识库设计规范：
+{knowledgeContext}
+
+设计原则：
+{designPrinciples}
+
+请将线框中的灰色占位替换为真实样式：
+- 应用知识库中的颜色、字体、间距
+- 每个元素匹配到合适的组件模式
+- 生成真实的文案内容（非 lorem ipsum）
+- 保持 CaptureTree 格式不变
+
+输出完整的 CaptureTree JSON：
+\`\`\`json
+{ "root": { ... }, ... }
+\`\`\`
+
+在回复末尾加上标记 [HIFI_DONE]`;
+
+const CODE_EXPORT_PROMPT = `你是一位前端开发专家。基于高保真设计的 CaptureTree，生成语义化的 React 组件代码。
+
+要求：
+1. 识别组件边界，将子树提取为独立组件
+2. 使用语义化的组件名（如 Card、InfoRow、ActionLink）
+3. 使用 TypeScript + 函数式组件
+4. 样式使用 CSS Modules 或 inline styles
+5. 输出可直接使用的代码
+
+请输出：
+1. 主组件文件（默认导出）
+2. 如有子组件，分别输出
+
+在回复末尾加上标记 [CODE_EXPORT_DONE]`;
 
 // ========== Node 函数 ==========
 
 async function discoveryNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
+  let prompt = DISCOVERY_PROMPT;
+  if (state.pageHierarchyContext) {
+    prompt += `\n\n# 页面层级结构\n${state.pageHierarchyContext}`;
+  }
+  if (state.knowledgeContext) {
+    prompt += `\n\n# 组件模式\n${state.knowledgeContext}`;
+  }
   const messages = [
-    new SystemMessage(DISCOVERY_PROMPT),
+    new SystemMessage(prompt),
     ...state.messages,
   ];
   const response = await llm.invoke(messages);
@@ -196,8 +313,12 @@ async function discoveryNode(state: typeof AgentStateAnnotation.State) {
 
 async function clarifyNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
+  let prompt = CLARIFY_PROMPT;
+  if (state.knowledgeContext) {
+    prompt += `\n\n# 项目知识库\n${state.knowledgeContext}`;
+  }
   const messages = [
-    new SystemMessage(CLARIFY_PROMPT),
+    new SystemMessage(prompt),
     ...state.messages,
   ];
   const response = await llm.invoke(messages);
@@ -214,7 +335,13 @@ async function clarifyNode(state: typeof AgentStateAnnotation.State) {
 
 async function requirementNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
-  const promptWithContext = REQUIREMENT_PROMPT.replace('{projectContext}', state.projectContext);
+  let promptWithContext = REQUIREMENT_PROMPT.replace('{projectContext}', state.projectContext);
+  if (state.pageHierarchyContext) {
+    promptWithContext += `\n\n# 页面层级结构\n${state.pageHierarchyContext}`;
+  }
+  if (state.knowledgeContext) {
+    promptWithContext += `\n\n# 组件模式\n${state.knowledgeContext}`;
+  }
   const messages = [
     new SystemMessage(promptWithContext),
     ...state.messages,
@@ -232,7 +359,10 @@ async function requirementNode(state: typeof AgentStateAnnotation.State) {
 
 async function prdNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
-  const promptWithContext = PRD_PROMPT.replace('{projectContext}', state.projectContext);
+  let promptWithContext = PRD_PROMPT.replace('{projectContext}', state.projectContext);
+  if (state.knowledgeContext) {
+    promptWithContext += `\n\n# Design Token 设计规范\n${state.knowledgeContext}`;
+  }
   const messages = [
     new SystemMessage(promptWithContext),
     ...state.messages,
@@ -243,27 +373,137 @@ async function prdNode(state: typeof AgentStateAnnotation.State) {
   
   return {
     messages: [new AIMessage(content.replace('[PRD_DONE]', '').trim())],
-    stage: 'prototype' as AgentStage,
+    stage: 'designPrinciples' as AgentStage,
     prdDoc: content,
     shouldAdvance: true,
   };
 }
 
-async function prototypeNode(state: typeof AgentStateAnnotation.State) {
+// 新增：设计原则节点
+async function designPrinciplesNode(state: typeof AgentStateAnnotation.State) {
+  // 尝试加载知识库上下文
+  let knowledgeCtx = state.knowledgeContext;
+  if (!knowledgeCtx && state.projectId) {
+    try {
+      const kb = await getKnowledgeBase(state.projectId);
+      if (kb) {
+        knowledgeCtx = toContextString(kb);
+      }
+    } catch { /* 知识库可能不存在 */ }
+  }
+
   const llm = createLLM();
-  // 获取项目页面列表
-  const pagesInfo = state.projectContext;
+  let prompt = DESIGN_PRINCIPLES_PROMPT.replace('{knowledgeContext}', knowledgeCtx || '暂无知识库数据');
+  if (state.designKnowledgeContext) {
+    prompt += `\n\n# 设计知识库\n${state.designKnowledgeContext}`;
+  }
   const messages = [
-    new SystemMessage(PROTOTYPE_PROMPT),
+    new SystemMessage(prompt),
     ...state.messages,
-    new HumanMessage(`请基于以上PRD中的页面变更清单，为每个页面生成具体的修改方案。\n\n项目页面信息：\n${pagesInfo}`),
+    new HumanMessage('请基于以上PRD和知识库，提取设计原则。'),
   ];
   const response = await llm.invoke(messages);
   const content = typeof response.content === 'string' ? response.content : '';
   
   return {
-    messages: [new AIMessage(content.replace('[PROTOTYPE_DONE]', '').trim())],
+    messages: [new AIMessage(content.replace('[DESIGN_PRINCIPLES_DONE]', '').trim())],
+    stage: 'wireframe' as AgentStage,
+    knowledgeContext: knowledgeCtx,
+    designPrinciplesDoc: content,
+    shouldAdvance: true,
+  };
+}
+
+// 新增：线框生成节点
+async function wireframeGenerateNode(state: typeof AgentStateAnnotation.State) {
+  const llm = createLLM();
+  let prompt = WIREFRAME_PROMPT.replace('{designPrinciples}', state.designPrinciplesDoc || '无');
+  if (state.designKnowledgeContext) {
+    prompt += `\n\n# 设计知识库（优先使用以下组件模板）\n${state.designKnowledgeContext}`;
+  }
+  const messages = [
+    new SystemMessage(prompt),
+    ...state.messages,
+    new HumanMessage('请基于以上PRD和设计原则，为每个新页面生成线框 CaptureTree JSON。'),
+  ];
+  const response = await llm.invoke(messages);
+  const content = typeof response.content === 'string' ? response.content : '';
+  
+  // 尝试从 AI 回复中提取 CaptureTree JSON
+  let wireframeTree: unknown = null;
+  try {
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      wireframeTree = JSON.parse(jsonMatch[1]);
+    }
+  } catch { /* JSON 解析失败，保留 null */ }
+  
+  return {
+    messages: [new AIMessage(content.replace('[WIREFRAME_DONE]', '').trim())],
+    stage: 'hifi' as AgentStage,
+    wireframeTree,
+    shouldAdvance: true,
+  };
+}
+
+// 新增：高保真设计节点
+async function hifiDesignNode(state: typeof AgentStateAnnotation.State) {
+  const llm = createLLM();
+  let prompt = HIFI_PROMPT
+    .replace('{knowledgeContext}', state.knowledgeContext || '暂无')
+    .replace('{designPrinciples}', state.designPrinciplesDoc || '无');
+  if (state.knowledgeContext) {
+    prompt += `\n\n# 完整 Design Token\n${state.knowledgeContext}`;
+  }
+  
+  const wireframeContext = state.wireframeTree
+    ? `\n\n线框 CaptureTree：\n\`\`\`json\n${JSON.stringify(state.wireframeTree, null, 2).slice(0, 4000)}\n\`\`\``
+    : '\n\n（无线框数据，请基于PRD直接生成高保真设计）';
+
+  const messages = [
+    new SystemMessage(prompt),
+    ...state.messages,
+    new HumanMessage(`请将线框升级为高保真设计。${wireframeContext}`),
+  ];
+  const response = await llm.invoke(messages);
+  const content = typeof response.content === 'string' ? response.content : '';
+  
+  // 尝试提取高保真 CaptureTree JSON
+  let hifiTree: unknown = null;
+  try {
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      hifiTree = JSON.parse(jsonMatch[1]);
+    }
+  } catch { /* JSON 解析失败 */ }
+  
+  return {
+    messages: [new AIMessage(content.replace('[HIFI_DONE]', '').trim())],
+    stage: 'codeExport' as AgentStage,
+    hifiTree,
+    shouldAdvance: true,
+  };
+}
+
+// 新增：代码导出节点
+async function codeExportNode(state: typeof AgentStateAnnotation.State) {
+  const llm = createLLM();
+  const hifiContext = state.hifiTree
+    ? `\n\n高保真 CaptureTree：\n\`\`\`json\n${JSON.stringify(state.hifiTree, null, 2).slice(0, 6000)}\n\`\`\``
+    : '\n\n（无高保真数据，请基于PRD描述生成代码）';
+
+  const messages = [
+    new SystemMessage(CODE_EXPORT_PROMPT),
+    ...state.messages,
+    new HumanMessage(`请基于高保真设计生成 React 组件代码。${hifiContext}`),
+  ];
+  const response = await llm.invoke(messages);
+  const content = typeof response.content === 'string' ? response.content : '';
+  
+  return {
+    messages: [new AIMessage(content.replace('[CODE_EXPORT_DONE]', '').trim())],
     stage: 'done' as AgentStage,
+    generatedCode: content,
     shouldAdvance: false,
   };
 }
@@ -291,13 +531,19 @@ function buildAgentGraph() {
     .addNode('clarify', clarifyNode)
     .addNode('requirement', requirementNode)
     .addNode('prd', prdNode)
-    .addNode('prototype', prototypeNode)
+    .addNode('designPrinciples', designPrinciplesNode)
+    .addNode('wireframeGenerate', wireframeGenerateNode)
+    .addNode('hifiDesign', hifiDesignNode)
+    .addNode('codeExport', codeExportNode)
     .addEdge('__start__', 'discovery')
     .addConditionalEdges('discovery', routeAfterDiscovery)
     .addConditionalEdges('clarify', routeAfterClarify)
     .addEdge('requirement', 'prd')
-    .addEdge('prd', 'prototype')
-    .addEdge('prototype', END);
+    .addEdge('prd', 'designPrinciples')
+    .addEdge('designPrinciples', 'wireframeGenerate')
+    .addEdge('wireframeGenerate', 'hifiDesign')
+    .addEdge('hifiDesign', 'codeExport')
+    .addEdge('codeExport', END);
   
   // 使用内存检查点（生产环境可改为文件系统）
   const checkpointer = new MemorySaver();
@@ -316,6 +562,26 @@ interface SessionMeta {
 }
 
 const DATA_DIR = path.join(process.cwd(), 'server', 'data', 'agent-sessions');
+
+/**
+ * 将页面层级树格式化为缩进文本
+ * 例如:
+ * - 首页
+ *   - 产品列表页
+ *     - 产品详情页
+ *   - 用户中心
+ */
+function formatPageHierarchyTree(nodes: PageHierarchyNode[], indent: number = 0): string {
+  const lines: string[] = [];
+  for (const node of nodes) {
+    const prefix = '  '.repeat(indent) + '- ';
+    lines.push(`${prefix}${node.name || node.url || node.id}`);
+    if (node.children.length > 0) {
+      lines.push(formatPageHierarchyTree(node.children, indent + 1));
+    }
+  }
+  return lines.join('\n');
+}
 
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) {
@@ -350,15 +616,51 @@ export class ProductAgentService {
     const sessionId = uuidv4();
     const projectCtx = buildProjectContext(projectId);
     
+    // 加载项目知识库上下文
+    let knowledgeCtx = '';
+    try {
+      const projectKB = getKnowledgeBase(projectId);
+      if (projectKB) {
+        knowledgeCtx = toContextString(projectKB);
+      }
+    } catch (err) {
+      console.warn(`Failed to load project knowledge base for ${projectId}:`, err);
+    }
+
+    // 加载设计知识库上下文
+    let designKnowledgeCtx = '';
+    try {
+      const designKB = getDesignKnowledgeBase(projectId);
+      if (designKB) {
+        designKnowledgeCtx = toDesignKnowledgeContextString(designKB);
+      }
+    } catch (err) {
+      console.warn(`Failed to load design knowledge base for ${projectId}:`, err);
+    }
+
+    // 加载页面层级树并格式化为文本
+    let pageHierarchyCtx = '';
+    try {
+      const hierarchyTree = getPageHierarchyTree(projectId);
+      if (hierarchyTree.length > 0) {
+        pageHierarchyCtx = formatPageHierarchyTree(hierarchyTree);
+      }
+    } catch (err) {
+      console.warn(`Failed to load page hierarchy for ${projectId}:`, err);
+    }
+
     const graph = getGraph();
     const config = { configurable: { thread_id: sessionId } };
     
-    // 初始调用 — 传入用户的想法
+    // 初始调用 — 传入用户的想法，注入知识库上下文
     const result = await graph.invoke({
       messages: [new HumanMessage(initialIdea)],
       projectId,
       rawIdea: initialIdea,
       projectContext: projectCtx,
+      knowledgeContext: knowledgeCtx,
+      designKnowledgeContext: designKnowledgeCtx,
+      pageHierarchyContext: pageHierarchyCtx,
     }, config);
     
     // 提取最后一条 AI 消息
@@ -385,6 +687,7 @@ export class ProductAgentService {
   }
   
   // 发送消息（继续对话）
+  // 增强：用户普通消息不自动推进阶段 (Requirement 5.1)
   async sendMessage(sessionId: string, message: string): Promise<{ response: string; stage: AgentStage; prd?: string }> {
     const graph = getGraph();
     const config = { configurable: { thread_id: sessionId } };
@@ -393,42 +696,92 @@ export class ProductAgentService {
     const currentState = await graph.getState(config);
     const currentStage = currentState.values?.stage || 'clarifying';
     
-    // 根据当前阶段决定下一个节点入口
-    // 用户消息后，根据 stage 更新图的入口
-    let result;
-    
-    if (currentStage === 'clarifying') {
-      // 用户回答后继续 clarify
-      result = await graph.invoke({
-        messages: [new HumanMessage(message)],
-      }, config);
-    } else if (currentStage === 'requirement' || currentStage === 'prd' || currentStage === 'prototype') {
-      // 这些阶段是自动推进的，用户消息可以作为补充
-      result = await graph.invoke({
-        messages: [new HumanMessage(message)],
-      }, config);
-    } else {
-      // 其他情况直接发送
-      result = await graph.invoke({
-        messages: [new HumanMessage(message)],
-      }, config);
+    // 从 session meta 中获取 projectId，用于重新加载知识库
+    let projectId = '';
+    const metaFilePath = path.join(DATA_DIR, sessionId, 'meta.json');
+    try {
+      if (fs.existsSync(metaFilePath)) {
+        const meta: SessionMeta = JSON.parse(fs.readFileSync(metaFilePath, 'utf-8'));
+        projectId = meta.projectId;
+      }
+    } catch (err) {
+      console.warn(`Failed to read session meta for ${sessionId}:`, err);
     }
+
+    // 每次处理消息前重新加载知识库上下文，确保使用最新内容 (Requirement 4.6)
+    let knowledgeCtx = '';
+    let designKnowledgeCtx = '';
+    let pageHierarchyCtx = '';
+
+    if (projectId) {
+      try {
+        const projectKB = getKnowledgeBase(projectId);
+        if (projectKB) {
+          knowledgeCtx = toContextString(projectKB);
+        }
+      } catch (err) {
+        console.warn(`Failed to reload project knowledge base for ${projectId}:`, err);
+      }
+
+      try {
+        const designKB = getDesignKnowledgeBase(projectId);
+        if (designKB) {
+          designKnowledgeCtx = toDesignKnowledgeContextString(designKB);
+        }
+      } catch (err) {
+        console.warn(`Failed to reload design knowledge base for ${projectId}:`, err);
+      }
+
+      try {
+        const hierarchyTree = getPageHierarchyTree(projectId);
+        if (hierarchyTree.length > 0) {
+          pageHierarchyCtx = formatPageHierarchyTree(hierarchyTree);
+        }
+      } catch (err) {
+        console.warn(`Failed to reload page hierarchy for ${projectId}:`, err);
+      }
+    }
+
+    // 构建包含刷新后知识库上下文的 invoke 输入
+    // shouldAdvance 设为 false，确保用户普通消息不自动推进阶段
+    const invokeInput = {
+      messages: [new HumanMessage(message)],
+      knowledgeContext: knowledgeCtx,
+      designKnowledgeContext: designKnowledgeCtx,
+      pageHierarchyContext: pageHierarchyCtx,
+      shouldAdvance: false,
+    };
+
+    // 记录当前阶段到 stageHistory
+    const stageHistoryUpdate = { stageHistory: [currentStage] };
+
+    const result = await graph.invoke(
+      { ...invokeInput, ...stageHistoryUpdate },
+      config
+    );
     
     const lastMessage = result.messages[result.messages.length - 1];
     const responseText = typeof lastMessage.content === 'string' ? lastMessage.content : '';
+    
+    // 确定最终阶段：如果 graph 自动推进了阶段但 shouldAdvance 未被设置，
+    // 则保持当前阶段不变（除非是 clarify 阶段的 READY_FOR_REQUIREMENT 自然推进）
+    const resultStage = result.stage || currentStage;
+    const finalStage = (result.shouldAdvance || currentStage === 'clarifying')
+      ? resultStage
+      : currentStage;
     
     // 更新 meta
     const metaPath = path.join(DATA_DIR, sessionId, 'meta.json');
     if (fs.existsSync(metaPath)) {
       const meta: SessionMeta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      meta.stage = result.stage || currentStage;
+      meta.stage = finalStage;
       meta.updatedAt = new Date().toISOString();
       fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
     }
     
     return {
       response: responseText,
-      stage: result.stage || currentStage,
+      stage: finalStage,
       prd: result.prdDoc || undefined,
     };
   }
@@ -463,9 +816,119 @@ export class ProductAgentService {
     switch (stage) {
       case 'clarifying': return '我认为信息已经足够了，请直接进入需求分析阶段。';
       case 'requirement': return '请基于当前需求生成PRD文档。';
-      case 'prd': return '请基于PRD生成原型修改方案。';
+      case 'prd': return '请基于PRD提取设计原则。';
+      case 'designPrinciples': return '请基于设计原则生成线框。';
+      case 'wireframe': return '请将线框升级为高保真设计。';
+      case 'hifi': return '请基于高保真设计生成代码。';
       default: return '请继续。';
     }
+  }
+
+  // 回退到指定阶段 (Requirement 5.2)
+  async rollbackStage(sessionId: string, targetStage: AgentStage): Promise<{ response: string; stage: AgentStage }> {
+    const graph = getGraph();
+    const config = { configurable: { thread_id: sessionId } };
+
+    // 获取当前状态
+    const currentState = await graph.getState(config);
+    if (!currentState.values) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    const currentStage = currentState.values.stage as AgentStage;
+
+    // 验证目标阶段有效性
+    const stageOrder: AgentStage[] = [
+      'discovery', 'clarifying', 'requirement', 'prd',
+      'designPrinciples', 'wireframe', 'hifi', 'codeExport', 'done',
+    ];
+    const currentIdx = stageOrder.indexOf(currentStage);
+    const targetIdx = stageOrder.indexOf(targetStage);
+
+    if (targetIdx < 0) {
+      throw new Error(`Invalid target stage: ${targetStage}. Valid stages: ${stageOrder.join(', ')}`);
+    }
+    if (targetIdx >= currentIdx) {
+      throw new Error(`Cannot rollback to stage "${targetStage}" — it is not before current stage "${currentStage}"`);
+    }
+
+    // 通过 updateState 将 stage 设为 targetStage，保留所有对话历史，
+    // 并添加系统消息说明回退
+    const rollbackMessage = `已回退到${targetStage}阶段，您可以继续在此阶段进行对话。`;
+    await graph.updateState(config, {
+      stage: targetStage,
+      shouldAdvance: false,
+      stageHistory: [currentStage],
+      messages: [new SystemMessage(rollbackMessage)],
+    });
+
+    // 更新 session meta 文件
+    const metaPath = path.join(DATA_DIR, sessionId, 'meta.json');
+    if (fs.existsSync(metaPath)) {
+      const meta: SessionMeta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      meta.stage = targetStage;
+      meta.updatedAt = new Date().toISOString();
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
+    }
+
+    return {
+      response: rollbackMessage,
+      stage: targetStage,
+    };
+  }
+
+  // 局部更新 PRD 指定部分 (Requirement 5.4)
+  async updatePRDSection(sessionId: string, section: string, modification: string): Promise<{ response: string; prd: string }> {
+    const graph = getGraph();
+    const config = { configurable: { thread_id: sessionId } };
+
+    // 获取当前状态
+    const currentState = await graph.getState(config);
+    if (!currentState.values) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    const currentPRD = currentState.values.prdDoc as string;
+    if (!currentPRD) {
+      throw new Error('No PRD document found in current session. PRD must be generated first.');
+    }
+
+    // 使用 LLM 局部修改 PRD 中指定的部分
+    const llm = createLLM();
+    const updatePrompt = `你是一位产品文档编辑专家。你需要对以下 PRD 文档进行局部修改。
+
+## 当前 PRD 文档
+${currentPRD}
+
+## 修改要求
+需要修改的部分：${section}
+修改内容：${modification}
+
+## 规则
+1. 仅修改指定的部分，保留其余所有内容不变
+2. 保持 Markdown 格式一致
+3. 修改后输出完整的 PRD 文档（不要只输出修改的部分）
+4. 不要添加任何额外说明，直接输出修改后的完整 PRD
+
+请输出修改后的完整 PRD 文档：`;
+
+    const response = await llm.invoke([new HumanMessage(updatePrompt)]);
+    const updatedPRD = typeof response.content === 'string' ? response.content : '';
+
+    // 更新 state 中的 prdDoc
+    const updateMessage = `已更新 PRD 中的「${section}」部分。`;
+    await graph.updateState(config, {
+      prdDoc: updatedPRD,
+      messages: [
+        new HumanMessage(`请修改 PRD 中的「${section}」：${modification}`),
+        new AIMessage(updateMessage),
+      ],
+    });
+
+    return {
+      response: updateMessage,
+      prd: updatedPRD,
+    };
   }
   
   // 获取会话信息

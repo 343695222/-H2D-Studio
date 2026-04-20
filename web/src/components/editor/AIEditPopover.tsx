@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { apiPost } from '../../api/client.ts';
 import type { SnapshotNode } from '../../stores/editorStore.ts';
+import { useEditorStore } from '../../stores/editorStore.ts';
 import './AIEditPopover.css';
 
 export interface AIEditState {
@@ -148,6 +149,7 @@ export function AIEditPopover({ state, node, onClose, onApply, onUndo }: AIEditP
           node: simplifiedNode,
           requirement,
           editType: state.type,
+          projectId: useEditorStore.getState().projectId || undefined,
         }
       );
 

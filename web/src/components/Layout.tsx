@@ -1,8 +1,13 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useParams } from 'react-router-dom';
 import './Layout.css';
 
 function Layout() {
   const location = useLocation();
+  const params = useParams();
+
+  // Extract projectId from URL for project-scoped nav links
+  const projectIdMatch = location.pathname.match(/(?:project|editor|workbench|design-system|design-knowledge)\/([^/]+)/);
+  const projectId = projectIdMatch?.[1] || params.id;
 
   return (
     <div className="layout">
@@ -16,8 +21,16 @@ function Layout() {
               to="/"
               className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
             >
-              项目
+              项目列表
             </Link>
+            {projectId && (
+              <Link
+                to={`/design-knowledge/${projectId}`}
+                className={`nav-link ${location.pathname.startsWith('/design-knowledge/') ? 'active' : ''}`}
+              >
+                设计知识库
+              </Link>
+            )}
             <Link
               to="/settings"
               className={`nav-link ${location.pathname === '/settings' ? 'active' : ''}`}
