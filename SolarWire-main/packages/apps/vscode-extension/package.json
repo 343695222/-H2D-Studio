@@ -1,0 +1,83 @@
+{
+  "name": "solarwire-support",
+  "displayName": "SolarWire Support",
+  "description": "SolarWire language support and preview - A lightweight DSL for UI wireframes",
+  "version": "1.1.0",
+  "publisher": "SolarWire",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SolarWire/SolarWire.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onLanguage:solarwire",
+    "onFileSystem:*.md",
+    "onFileSystem:*.solarwire",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "solarwire",
+        "extensions": [
+          ".solarwire"
+        ],
+        "aliases": [
+          "SolarWire"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "solarwire",
+        "scopeName": "source.solarwire",
+        "path": "./syntaxes/solarwire.tmLanguage.json"
+      },
+      {
+        "language": "markdown",
+        "scopeName": "source.solarwire.markdown",
+        "path": "./syntaxes/solarwire-markdown.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "solarwire",
+        "path": "./snippets/solarwire.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "solarwire.showPreview",
+        "title": "SolarWire: Show Preview"
+      },
+      {
+        "command": "solarwire.exportSvg",
+        "title": "SolarWire: Export to SVG"
+      },
+      {
+        "command": "solarwire.exportPng",
+        "title": "SolarWire: Export to PNG"
+      }
+    ],
+    "markdown.markdownItPlugins": true
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.3.0"
+  }
+}

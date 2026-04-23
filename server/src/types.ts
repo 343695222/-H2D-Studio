@@ -111,6 +111,22 @@ export interface Skill {
   updatedAt: string;
 }
 
+// ========== SolarWire Types ==========
+
+export interface SolarWireSummary {
+  pageId: string;           // 关联的页面 ID
+  dsl: string;              // SolarWire DSL 文本
+  generatedAt: string;      // 生成时间
+}
+
+export interface SolarWireStructurePattern {
+  name: string;             // 模式名称（如 "导航栏"、"卡片列表"）
+  description: string;      // 模式描述
+  dslSnippet: string;       // SolarWire DSL 片段
+  frequency: number;        // 出现频次
+  sourcePages: string[];    // 来源页面 ID
+}
+
 // ========== Knowledge Base Types ==========
 
 export interface DesignSystemKnowledge {
@@ -122,6 +138,8 @@ export interface DesignSystemKnowledge {
   shadows: ShadowToken[];
   componentPatterns: ComponentPattern[];
   layoutPatterns: LayoutPattern[];
+  solarwireSummaries?: SolarWireSummary[];
+  solarwirePatterns?: SolarWireStructurePattern[];
   updatedAt: string;
 }
 

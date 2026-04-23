@@ -1,0 +1,104 @@
+/* SolarWirePreview — SolarWire DSL SVG 预览组件 */
+
+.sw-preview {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 8px 0;
+  background: #ffffff;
+}
+
+.sw-preview--error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+/* SVG 渲染区域 */
+.sw-preview-svg {
+  padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.sw-preview-svg svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.sw-preview-loading {
+  text-align: center;
+  padding: 24px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+/* 错误提示 */
+.sw-preview-error-msg {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-bottom: 1px solid #fca5a5;
+}
+
+/* 操作按钮区域 */
+.sw-preview-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sw-preview-btn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sw-preview-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.sw-preview-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sw-preview-btn--import {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.sw-preview-btn--import:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* 源码展示区域 */
+.sw-preview-code {
+  margin: 0;
+  padding: 14px;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sw-preview-code code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}

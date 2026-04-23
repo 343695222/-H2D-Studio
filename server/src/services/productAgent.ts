@@ -5,9 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildProjectContext, getPages, getPageHierarchyTree } from './storage.js';
-import { getKnowledgeBase, toContextString } from './knowledgeBase.js';
+import { getKnowledgeBase, toContextString, extractSolarWirePatterns, toSolarWireContextString } from './knowledgeBase.js';
 import { getDesignKnowledgeBase, toDesignKnowledgeContextString } from './designKnowledgeBase.js';
-import type { PageHierarchyNode } from '../types.js';
+import { extractSolarWireCodeBlocks, solarwireToCaptureTree } from './solarwireConverter.js';
+import type { PageHierarchyNode, SolarWireSummary } from '../types.js';
 
 // ========== 类型定义 ==========
 
@@ -89,6 +90,16 @@ const AgentStateAnnotation = Annotation.Root({
   hifiTree: Annotation<unknown>({
     reducer: (_prev, next) => next,
     default: () => null,
+  }),
+  // 新增：线框阶段的 SolarWire DSL
+  wireframeDsl: Annotation<string>({
+    reducer: (_prev, next) => next || _prev,
+    default: () => '',
+  }),
+  // 新增：高保真阶段的 SolarWire DSL
+  hifiDsl: Annotation<string>({
+    reducer: (_prev, next) => next || _prev,
+    default: () => '',
   }),
   // 新增：生成的代码
   generatedCode: Annotation<string>({
@@ -234,7 +245,8 @@ const DESIGN_PRINCIPLES_PROMPT = `你是一位设计系统专家。基于PRD文�
 
 在回复末尾加上标记 [DESIGN_PRINCIPLES_DONE]`;
 
-const WIREFRAME_PROMPT = `你是一位线框设计师。基于PRD中的页面变更清单和设计原则，为每个新页面生成线框结构。
+// Legacy: 原始 CaptureTree JSON 线框提示词（保留供参考）
+const WIREFRAME_PROMPT_LEGACY = `你是一位线框设计师。基于PRD中的页面变更清单和设计原则，为每个新页面生成线框结构。
 
 设计原则：
 {designPrinciples}
@@ -252,7 +264,55 @@ const WIREFRAME_PROMPT = `你是一位线框设计师。基于PRD中的页面变
 
 在回复末尾加上标记 [WIREFRAME_DONE]`;
 
-const HIFI_PROMPT = `你是一位高保真设计师。基于线框结构和知识库中的设计规范，将线框升级为高保真设计。
+const WIREFRAME_PROMPT = `你是一位线框设计师。基于PRD中的页面变更清单和设计原则，为每个新页面生成 SolarWire 线框。
+
+## SolarWire 语法速查
+
+### 基本元素
+- 矩形: ["文本"]
+- 圆角矩形: ("文本")
+- 圆形: (("文本"))
+- 占位符: [?]
+- 纯文本: "文本"
+
+### 坐标
+- 绝对坐标: @(x,y)
+- 相对坐标: @(+dx,+dy)
+
+### 属性
+- 宽高: w=200 h=40
+- 颜色: bg=#e0e0e0 c=#999
+- 字体: size=14 bold
+- 圆角: r=8
+
+### 表格
+##
+# ["列1"] ["列2"] ["列3"]
+# ["数据1"] ["数据2"] ["数据3"]
+##
+
+### 连线
+--"标签"-- @(start)->(end)
+
+## 线框要求
+- 使用灰色占位色 bg=#e0e0e0，文字用 c=#999
+- 每个占位块标注语义角色（如 "搜索栏"、"表格"、"分页"）
+- 布局使用嵌套结构表达层级关系
+
+{designPrinciples}
+
+{structurePatterns}
+
+请为每个页面输出 SolarWire 代码块：
+\`\`\`solarwire
+// 页面名称
+...
+\`\`\`
+
+在回复末尾加上标记 [WIREFRAME_DONE]`;
+
+// Legacy: 原始 CaptureTree JSON 高保真提示词（保留供参考）
+const HIFI_PROMPT_LEGACY = `你是一位高保真设计师。基于线框结构和知识库中的设计规范，将线框升级为高保真设计。
 
 知识库设计规范：
 {knowledgeContext}
@@ -269,6 +329,37 @@ const HIFI_PROMPT = `你是一位高保真设计师。基于线框结构和知�
 输出完整的 CaptureTree JSON：
 \`\`\`json
 { "root": { ... }, ... }
+\`\`\`
+
+在回复末尾加上标记 [HIFI_DONE]`;
+
+const HIFI_PROMPT = `你是一位高保真设计师。基于线框和知识库中的设计规范，将线框升级为高保真设计。
+
+## SolarWire 样式属性
+- 背景色: bg=#1890ff
+- 文字色: c=white
+- 字号: size=14
+- 加粗: bold
+- 圆角: r=8
+- 宽高: w=200 h=40
+
+## 知识库设计规范
+{knowledgeContext}
+
+## 设计原则
+{designPrinciples}
+
+## 当前线框
+{wireframeDsl}
+
+请将线框中的灰色占位替换为真实样式：
+- 应用知识库中的颜色、字体、间距
+- 生成真实的文案内容
+- 保持 SolarWire 格式
+
+输出高保真 SolarWire 代码块：
+\`\`\`solarwire
+...
 \`\`\`
 
 在回复末尾加上标记 [HIFI_DONE]`;
@@ -414,73 +505,143 @@ async function designPrinciplesNode(state: typeof AgentStateAnnotation.State) {
   };
 }
 
+// 加载项目的 SolarWire 结构上下文（摘要 + 模式）
+function loadSolarWireContext(projectId: string): string {
+  try {
+    const projectPagesDir = path.join(process.cwd(), 'server', 'data', 'projects', projectId, 'pages');
+    if (!fs.existsSync(projectPagesDir)) return '';
+
+    const pageIds = fs.readdirSync(projectPagesDir);
+    const summaries: SolarWireSummary[] = [];
+
+    for (const pageId of pageIds) {
+      const solarwirePath = path.join(projectPagesDir, pageId, 'solarwire.txt');
+      if (fs.existsSync(solarwirePath)) {
+        try {
+          const dsl = fs.readFileSync(solarwirePath, 'utf-8');
+          if (dsl.trim()) {
+            summaries.push({ pageId, dsl, generatedAt: '' });
+          }
+        } catch { /* skip unreadable files */ }
+      }
+    }
+
+    if (summaries.length === 0) return '';
+
+    const patterns = extractSolarWirePatterns(summaries);
+    return toSolarWireContextString(summaries, patterns);
+  } catch (err) {
+    console.warn(`Failed to load SolarWire context for project ${projectId}:`, err);
+    return '';
+  }
+}
+
 // 新增：线框生成节点
 async function wireframeGenerateNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
-  let prompt = WIREFRAME_PROMPT.replace('{designPrinciples}', state.designPrinciplesDoc || '无');
+  // 加载 SolarWire 结构上下文并注入到 {structurePatterns} 占位符
+  const solarWireCtx = loadSolarWireContext(state.projectId);
+  let prompt = WIREFRAME_PROMPT
+    .replace('{designPrinciples}', state.designPrinciplesDoc || '无')
+    .replace('{structurePatterns}', solarWireCtx || '');
   if (state.designKnowledgeContext) {
     prompt += `\n\n# 设计知识库（优先使用以下组件模板）\n${state.designKnowledgeContext}`;
   }
   const messages = [
     new SystemMessage(prompt),
     ...state.messages,
-    new HumanMessage('请基于以上PRD和设计原则，为每个新页面生成线框 CaptureTree JSON。'),
+    new HumanMessage('请基于以上PRD和设计原则，为每个新页面生成线框 SolarWire DSL。'),
   ];
   const response = await llm.invoke(messages);
-  const content = typeof response.content === 'string' ? response.content : '';
-  
-  // 尝试从 AI 回复中提取 CaptureTree JSON
+  let content = typeof response.content === 'string' ? response.content : '';
+
+  // 优先尝试从 AI 回复中提取 SolarWire 代码块
   let wireframeTree: unknown = null;
-  try {
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      wireframeTree = JSON.parse(jsonMatch[1]);
+  let wireframeDsl = '';
+  const solarwireBlocks = extractSolarWireCodeBlocks(content);
+  if (solarwireBlocks.length > 0) {
+    const dsl = solarwireBlocks[0];
+    const result = solarwireToCaptureTree(dsl);
+    if (result.success) {
+      wireframeTree = result.captureTree;
+      wireframeDsl = dsl;
+    } else {
+      content += `\n\n⚠️ SolarWire 语法解析失败: ${result.error.message}。请检查语法并重试。`;
     }
-  } catch { /* JSON 解析失败，保留 null */ }
-  
+  }
+
+  // JSON 回退（向后兼容）
+  if (!wireframeTree) {
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        wireframeTree = JSON.parse(jsonMatch[1]);
+      }
+    } catch { /* JSON 解析失败，保留 null */ }
+  }
+
   return {
     messages: [new AIMessage(content.replace('[WIREFRAME_DONE]', '').trim())],
     stage: 'hifi' as AgentStage,
     wireframeTree,
+    wireframeDsl,
     shouldAdvance: true,
   };
 }
 
+
 // 新增：高保真设计节点
 async function hifiDesignNode(state: typeof AgentStateAnnotation.State) {
   const llm = createLLM();
+  // 加载 SolarWire 结构上下文并追加到 knowledgeContext
+  const solarWireCtx = loadSolarWireContext(state.projectId);
+  const knowledgeWithSolarWire = [state.knowledgeContext || '暂无', solarWireCtx].filter(Boolean).join('\n\n');
   let prompt = HIFI_PROMPT
-    .replace('{knowledgeContext}', state.knowledgeContext || '暂无')
-    .replace('{designPrinciples}', state.designPrinciplesDoc || '无');
+    .replace('{knowledgeContext}', knowledgeWithSolarWire)
+    .replace('{designPrinciples}', state.designPrinciplesDoc || '无')
+    .replace('{wireframeDsl}', state.wireframeDsl || '（无线框 DSL）');
   if (state.knowledgeContext) {
     prompt += `\n\n# 完整 Design Token\n${state.knowledgeContext}`;
   }
-  
-  const wireframeContext = state.wireframeTree
-    ? `\n\n线框 CaptureTree：\n\`\`\`json\n${JSON.stringify(state.wireframeTree, null, 2).slice(0, 4000)}\n\`\`\``
-    : '\n\n（无线框数据，请基于PRD直接生成高保真设计）';
 
   const messages = [
     new SystemMessage(prompt),
     ...state.messages,
-    new HumanMessage(`请将线框升级为高保真设计。${wireframeContext}`),
+    new HumanMessage('请将线框升级为高保真设计。'),
   ];
   const response = await llm.invoke(messages);
-  const content = typeof response.content === 'string' ? response.content : '';
-  
-  // 尝试提取高保真 CaptureTree JSON
+  let content = typeof response.content === 'string' ? response.content : '';
+
+  // 优先尝试从 AI 回复中提取 SolarWire 代码块
   let hifiTree: unknown = null;
-  try {
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      hifiTree = JSON.parse(jsonMatch[1]);
+  let hifiDsl = '';
+  const solarwireBlocks = extractSolarWireCodeBlocks(content);
+  if (solarwireBlocks.length > 0) {
+    const dsl = solarwireBlocks[0];
+    const result = solarwireToCaptureTree(dsl);
+    if (result.success) {
+      hifiTree = result.captureTree;
+      hifiDsl = dsl;
+    } else {
+      content += `\n\n⚠️ SolarWire 语法解析失败: ${result.error.message}。请检查语法并重试。`;
     }
-  } catch { /* JSON 解析失败 */ }
-  
+  }
+
+  // JSON 回退（向后兼容）
+  if (!hifiTree) {
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        hifiTree = JSON.parse(jsonMatch[1]);
+      }
+    } catch { /* JSON 解析失败 */ }
+  }
+
   return {
     messages: [new AIMessage(content.replace('[HIFI_DONE]', '').trim())],
     stage: 'codeExport' as AgentStage,
     hifiTree,
+    hifiDsl,
     shouldAdvance: true,
   };
 }

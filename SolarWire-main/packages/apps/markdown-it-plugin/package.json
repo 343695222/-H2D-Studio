@@ -1,0 +1,26 @@
+{
+  "name": "@solarwire/markdown-it-plugin",
+  "version": "1.5.0",
+  "description": "Markdown-it plugin for SolarWire diagrams",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "solarwire",
+    "markdown-it",
+    "plugin",
+    "diagram"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@solarwire/parser": "*",
+    "@solarwire/renderer-svg": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

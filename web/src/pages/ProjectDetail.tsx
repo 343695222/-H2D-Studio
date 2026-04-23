@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProjectStore } from '../stores/projectStore.ts';
-import { apiPost, apiGet } from '../api/client.ts';
+import { apiPost, apiGet, apiPut } from '../api/client.ts';
 import { useWebSocket } from '../hooks/useWebSocket.ts';
 import Loading from '../components/Loading.tsx';
 import AgentPanel from '../components/agent/AgentPanel.tsx';
@@ -66,6 +66,25 @@ function ProjectDetail() {
   const [prdContent, setPrdContent] = useState<string | null>(null);
   const [prdError, setPrdError] = useState<string | null>(null);
   const [showAgentPanel, setShowAgentPanel] = useState(false);
+
+  // Handle SolarWire import to editor: save editedTree to first page and navigate
+  const handleImportToEditor = useCallback(async (captureTree: unknown) => {
+    if (!id || !pages || pages.length === 0) {
+      setToastMessage('没有可用的页面，请先捕获一个页面');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+    const targetPage = pages[0] as { id: string };
+    try {
+      await apiPut(`/projects/${id}/pages/${targetPage.id}`, { editedTree: captureTree });
+      setShowAgentPanel(false);
+      navigate(`/editor/${id}/${targetPage.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '导入失败';
+      setToastMessage(`导入到编辑器失败: ${msg}`);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  }, [id, pages, navigate]);
 
   // 页面层级树
   const [hierarchyNodes, setHierarchyNodes] = useState<PageHierarchyNode[]>([]);
@@ -460,6 +479,7 @@ function ProjectDetail() {
         pages={pages?.map((p: any) => ({ id: p.id, name: p.name, url: p.url })) || []}
         isOpen={showAgentPanel}
         onClose={() => setShowAgentPanel(false)}
+        onImportToEditor={handleImportToEditor}
       />
 
       {/* 提示区域 */}

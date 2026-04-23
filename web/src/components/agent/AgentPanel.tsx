@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   createAgentSession,
   sendAgentMessage,
@@ -6,6 +6,7 @@ import {
   getAgentPRD,
   rollbackAgentStage,
 } from '../../api/client.ts';
+import SolarWirePreview from './SolarWirePreview';
 import './AgentPanel.css';
 
 interface AgentPanelProps {
@@ -14,6 +15,7 @@ interface AgentPanelProps {
   pages: Array<{ id: string; name: string; url: string }>;
   isOpen: boolean;
   onClose: () => void;
+  onImportToEditor?: (captureTree: unknown) => void;
 }
 
 interface Message {
@@ -53,6 +55,76 @@ function renderMarkdown(markdown: string): string {
     .replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>')
     .replace(/\n\n/gim, '</p><p>')
     .replace(/\n/gim, '<br>');
+}
+
+// Split message into segments: [text, solarwire_dsl, text, solarwire_dsl, ...]
+const SOLARWIRE_BLOCK_REGEX = /(```solarwire\s*\n[\s\S]*?```)/g;
+
+/**
+ * 提取 solarwire 代码块的 DSL 内容（去掉 ```solarwire 和 ``` 标记）
+ */
+function extractSolarWireDsl(block: string): string {
+  return block.replace(/^```solarwire\s*\n/, '').replace(/```$/, '').trim();
+}
+
+/**
+ * 渲染消息内容，检测 solarwire 代码块并用 SolarWirePreview 替换
+ */
+function MessageContent({
+  content,
+  role,
+  projectId,
+  onImportToEditor,
+}: {
+  content: string;
+  role: 'user' | 'assistant';
+  projectId: string;
+  onImportToEditor?: (captureTree: unknown) => void;
+}) {
+  // Only detect solarwire blocks in assistant messages
+  if (role !== 'assistant' || !SOLARWIRE_BLOCK_REGEX.test(content)) {
+    return (
+      <div
+        className="message-content"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+      />
+    );
+  }
+
+  // Reset regex lastIndex after test()
+  SOLARWIRE_BLOCK_REGEX.lastIndex = 0;
+
+  const segments = content.split(SOLARWIRE_BLOCK_REGEX);
+
+  return (
+    <div className="message-content">
+      {segments.map((segment, index) => {
+        if (SOLARWIRE_BLOCK_REGEX.test(segment)) {
+          // Reset regex lastIndex after test()
+          SOLARWIRE_BLOCK_REGEX.lastIndex = 0;
+          const dsl = extractSolarWireDsl(segment);
+          return (
+            <SolarWirePreview
+              key={index}
+              dsl={dsl}
+              projectId={projectId}
+              onImportToEditor={onImportToEditor}
+            />
+          );
+        }
+        // Reset regex lastIndex after test()
+        SOLARWIRE_BLOCK_REGEX.lastIndex = 0;
+        // Regular text segment — render as markdown
+        if (!segment.trim()) return null;
+        return (
+          <div
+            key={index}
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(segment) }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 // 解析 AI 消息中的问题列表
@@ -127,6 +199,7 @@ export default function AgentPanel({
   pages,
   isOpen,
   onClose,
+  onImportToEditor,
 }: AgentPanelProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -139,6 +212,14 @@ export default function AgentPanel({
   const [modificationFeedback, setModificationFeedback] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Handler: import SolarWire CaptureTree to editor
+  const handleImportToEditor = useCallback((captureTree: unknown) => {
+    if (onImportToEditor) {
+      onImportToEditor(captureTree);
+    }
+    onClose();
+  }, [onImportToEditor, onClose]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -493,9 +574,11 @@ export default function AgentPanel({
                       {msg.role === 'assistant' ? '🤖' : '👤'}
                     </div>
                     <div>
-                      <div
-                        className="message-content"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                      <MessageContent
+                        content={msg.content}
+                        role={msg.role}
+                        projectId={projectId}
+                        onImportToEditor={handleImportToEditor}
                       />
                       <div className="message-time">{msg.timestamp}</div>
                     </div>

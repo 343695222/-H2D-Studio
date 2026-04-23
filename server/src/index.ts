@@ -13,6 +13,7 @@ import exportRouter from './routes/export.js';
 import skillsRouter from './routes/skills.js';
 import knowledgeRouter from './routes/knowledge.js';
 import designKnowledgeRouter from './routes/designKnowledge.js';
+import solarwireRouter from './routes/solarwire.js';
 
 import { ensureDataDir } from './services/storage.js';
 import { initBuiltinSkills } from './services/skillStorage.js';
@@ -47,6 +48,7 @@ app.use('/api/export', exportRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/design-knowledge', designKnowledgeRouter);
+app.use('/api/solarwire', solarwireRouter);
 // 动态加载 agent 路由，防止初始化失败导致整个 server 崩溃
 import('./routes/agent.js')
   .then(mod => {

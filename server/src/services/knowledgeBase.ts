@@ -8,7 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { DesignSystemKnowledge } from '../types.js';
+import type { DesignSystemKnowledge, SolarWireSummary, SolarWireStructurePattern } from '../types.js';
+import { captureTreeToSolarWire } from './solarwireConverter.js';
 import { getPages, getPage } from './storage.js';
 import {
   extractAllDesignTokens,
@@ -222,6 +223,182 @@ export function toContextString(knowledge: DesignSystemKnowledge): string {
       parts.push(`- ${layout.name}: ${layout.description} (出现${layout.frequency}次)`);
     }
     parts.push('');
+  }
+
+  return parts.join('\n');
+}
+
+// ========== SolarWire 摘要与模式 ==========
+
+/**
+ * 为单个页面生成 SolarWire 摘要。
+ * 在 savePage 时自动调用。
+ */
+export function generateSolarWireSummary(
+  _projectId: string,
+  pageId: string,
+  captureTree: any
+): SolarWireSummary | null {
+  try {
+    const dsl = captureTreeToSolarWire(captureTree);
+    if (!dsl || dsl.trim().length === 0) {
+      return null;
+    }
+    return {
+      pageId,
+      dsl,
+      generatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn(`Failed to generate SolarWire summary for page ${pageId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 从所有页面的 SolarWire 摘要中提取常见结构模式。
+ * 在 buildKnowledgeBase 时调用。
+ */
+export function extractSolarWirePatterns(
+  summaries: SolarWireSummary[]
+): SolarWireStructurePattern[] {
+  if (!summaries || summaries.length === 0) return [];
+
+  // 定义要检测的模式规则
+  const patternRules: Array<{
+    name: string;
+    description: string;
+    test: (dsl: string) => string | null; // 返回匹配的 DSL 片段或 null
+  }> = [
+    {
+      name: '导航栏',
+      description: '页面顶部全宽导航区域',
+      test: (dsl) => {
+        // 检测顶部位置 + 全宽元素（y 较小，w 较大）
+        const lines = dsl.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (
+            (trimmed.includes('@(0,0)') || trimmed.includes('@(0, 0)')) &&
+            /w=\d{3,}/.test(trimmed)
+          ) {
+            return trimmed;
+          }
+        }
+        // 也检测含有"导航"/"nav"关键词的行
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (/导航|nav/i.test(trimmed) && /\[|(\()/i.test(trimmed)) {
+            return trimmed;
+          }
+        }
+        return null;
+      },
+    },
+    {
+      name: '卡片列表',
+      description: '重复出现的卡片或列表项结构',
+      test: (dsl) => {
+        // 检测重复的圆角矩形结构（多个相似的 ("...") 元素）
+        const roundedMatches = dsl.match(/\(".*?"\)/g);
+        if (roundedMatches && roundedMatches.length >= 3) {
+          return roundedMatches.slice(0, 3).join('\n');
+        }
+        // 检测含有"卡片"/"card"/"列表"/"list"关键词
+        const lines = dsl.split('\n');
+        for (const line of lines) {
+          if (/卡片|card|列表|list/i.test(line)) {
+            return line.trim();
+          }
+        }
+        return null;
+      },
+    },
+    {
+      name: '表单布局',
+      description: '包含输入框和按钮的表单区域',
+      test: (dsl) => {
+        // 检测表格结构 ## 或含有"表单"/"form"/"输入"/"input"关键词
+        if (dsl.includes('##')) {
+          const tableMatch = dsl.match(/##[\s\S]*?##/);
+          if (tableMatch) return tableMatch[0];
+        }
+        const lines = dsl.split('\n');
+        for (const line of lines) {
+          if (/表单|form|输入|input|搜索|search/i.test(line)) {
+            return line.trim();
+          }
+        }
+        return null;
+      },
+    },
+  ];
+
+  const patterns: SolarWireStructurePattern[] = [];
+
+  for (const rule of patternRules) {
+    const matchedPages: string[] = [];
+    let bestSnippet = '';
+
+    for (const summary of summaries) {
+      const snippet = rule.test(summary.dsl);
+      if (snippet) {
+        matchedPages.push(summary.pageId);
+        if (!bestSnippet || snippet.length > bestSnippet.length) {
+          bestSnippet = snippet;
+        }
+      }
+    }
+
+    if (matchedPages.length > 0) {
+      patterns.push({
+        name: rule.name,
+        description: rule.description,
+        dslSnippet: bestSnippet,
+        frequency: matchedPages.length,
+        sourcePages: matchedPages,
+      });
+    }
+  }
+
+  // 按频次降序排列
+  patterns.sort((a, b) => b.frequency - a.frequency);
+
+  return patterns;
+}
+
+/**
+ * 将 SolarWire 摘要和结构模式转为 AI 上下文字符串。
+ */
+export function toSolarWireContextString(
+  summaries: SolarWireSummary[],
+  patterns: SolarWireStructurePattern[]
+): string {
+  const parts: string[] = [];
+
+  // 页面结构摘要
+  if (summaries.length > 0) {
+    parts.push('## 现有页面结构摘要');
+    for (const summary of summaries) {
+      parts.push(`### 页面 ${summary.pageId}`);
+      parts.push('```solarwire');
+      parts.push(summary.dsl);
+      parts.push('```');
+      parts.push('');
+    }
+  }
+
+  // 结构模式
+  if (patterns.length > 0) {
+    parts.push('## 常见结构模式');
+    for (const pattern of patterns) {
+      parts.push(`### ${pattern.name}`);
+      parts.push(`${pattern.description}（出现${pattern.frequency}次，来源${pattern.sourcePages.length}个页面）`);
+      parts.push('```solarwire');
+      parts.push(pattern.dslSnippet);
+      parts.push('```');
+      parts.push('');
+    }
   }
 
   return parts.join('\n');

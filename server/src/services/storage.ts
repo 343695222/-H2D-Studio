@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Project, PageCapture, PageSummary, PageKnowledgeSummary, PageHierarchy, PageHierarchyNode } from '../types.js';
 import { generateId, getCurrentTimestamp } from '../utils.js';
+import { captureTreeToSolarWire } from './solarwireConverter.js';
+import { generateSolarWireSummary } from './knowledgeBase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -405,6 +407,17 @@ export function savePage(
   project.pageCount = getPages(projectId).length + 1;
   project.updatedAt = timestamp;
   fs.writeFileSync(getProjectMetaPath(projectId), JSON.stringify(project, null, 2));
+
+  // Generate SolarWire summary (non-blocking — failures must not affect page save)
+  try {
+    const solarWireDsl = captureTreeToSolarWire(captureTree as any);
+    if (solarWireDsl && solarWireDsl.trim().length > 0) {
+      fs.writeFileSync(path.join(pageDir, 'solarwire.txt'), solarWireDsl, 'utf-8');
+      generateSolarWireSummary(projectId, pageId, captureTree);
+    }
+  } catch (err) {
+    console.warn(`[SolarWire] Failed to generate summary for page ${pageId}:`, err);
+  }
 
   return page;
 }
